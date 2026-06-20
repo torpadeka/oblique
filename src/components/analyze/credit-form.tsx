@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatIdrCompact } from "@/lib/format";
+import { formatMoneyCompact } from "@/lib/format";
 import type { CreditInput } from "@/lib/types";
 
-type FieldType = "text" | "number" | "idr" | "date" | "textarea" | "select" | "checkbox";
+type FieldType = "text" | "number" | "money" | "date" | "textarea" | "select" | "checkbox";
 
 interface FieldDef {
   key: keyof CreditInput;
@@ -37,8 +37,8 @@ const SECTIONS: Section[] = [
     fields: [
       { key: "companyName", label: "Company name", type: "text" },
       { key: "debtorName", label: "Debtor name", type: "text" },
-      { key: "npwp", label: "NPWP (tax ID)", type: "text" },
-      { key: "nib", label: "NIB (business reg.)", type: "text" },
+      { key: "npwp", label: "Tax ID", type: "text" },
+      { key: "nib", label: "Business reg. no.", type: "text" },
       { key: "companyAddress", label: "Address", type: "text", full: true },
       { key: "establishedDate", label: "Established", type: "date" },
       { key: "sector", label: "Sector", type: "text" },
@@ -51,30 +51,30 @@ const SECTIONS: Section[] = [
     description: "The credit being requested.",
     fields: [
       { key: "loanPurpose", label: "Loan purpose", type: "textarea", full: true },
-      { key: "plafonRequested", label: "Plafon requested", type: "idr" },
-      { key: "plafonApproved", label: "Plafon approved", type: "idr" },
+      { key: "plafonRequested", label: "Credit limit requested", type: "money" },
+      { key: "plafonApproved", label: "Credit limit approved", type: "money" },
       { key: "tenorMonths", label: "Tenor (months)", type: "number" },
       { key: "interestRate", label: "Interest rate (% p.a.)", type: "number", step: "0.1" },
       { key: "repaymentScheme", label: "Repayment scheme", type: "text", full: true },
     ],
   },
   {
-    title: "Financials (latest year, IDR)",
+    title: "Financials (latest year, USD)",
     description: "Ratios are derived from these inside the boundary.",
     fields: [
-      { key: "revenue", label: "Revenue", type: "idr" },
-      { key: "cogs", label: "COGS", type: "idr" },
-      { key: "operatingProfit", label: "Operating profit", type: "idr" },
-      { key: "netIncome", label: "Net income", type: "idr" },
-      { key: "ebitda", label: "EBITDA", type: "idr" },
-      { key: "interestExpense", label: "Interest expense", type: "idr" },
-      { key: "totalAssets", label: "Total assets", type: "idr" },
-      { key: "totalEquity", label: "Total equity", type: "idr" },
-      { key: "totalLiabilities", label: "Total liabilities", type: "idr" },
-      { key: "currentAssets", label: "Current assets", type: "idr" },
-      { key: "currentLiabilities", label: "Current liabilities", type: "idr" },
-      { key: "cash", label: "Cash & equivalents", type: "idr" },
-      { key: "inventory", label: "Inventory", type: "idr" },
+      { key: "revenue", label: "Revenue", type: "money" },
+      { key: "cogs", label: "COGS", type: "money" },
+      { key: "operatingProfit", label: "Operating profit", type: "money" },
+      { key: "netIncome", label: "Net income", type: "money" },
+      { key: "ebitda", label: "EBITDA", type: "money" },
+      { key: "interestExpense", label: "Interest expense", type: "money" },
+      { key: "totalAssets", label: "Total assets", type: "money" },
+      { key: "totalEquity", label: "Total equity", type: "money" },
+      { key: "totalLiabilities", label: "Total liabilities", type: "money" },
+      { key: "currentAssets", label: "Current assets", type: "money" },
+      { key: "currentLiabilities", label: "Current liabilities", type: "money" },
+      { key: "cash", label: "Cash & equivalents", type: "money" },
+      { key: "inventory", label: "Inventory", type: "money" },
     ],
   },
   {
@@ -91,18 +91,18 @@ const SECTIONS: Section[] = [
     description: "Security and credit history.",
     fields: [
       { key: "collateralType", label: "Collateral type", type: "text", full: true },
-      { key: "collateralMarketValue", label: "Market value", type: "idr" },
-      { key: "collateralLiquidationValue", label: "Liquidation value", type: "idr" },
+      { key: "collateralMarketValue", label: "Market value", type: "money" },
+      { key: "collateralLiquidationValue", label: "Liquidation value", type: "money" },
       {
         key: "slikQuality",
-        label: "SLIK quality",
+        label: "Bureau grade",
         type: "select",
         options: [
-          { value: 1, label: "1 — Lancar (current)" },
-          { value: 2, label: "2 — DPK (special mention)" },
-          { value: 3, label: "3 — Kurang Lancar" },
-          { value: 4, label: "4 — Diragukan" },
-          { value: 5, label: "5 — Macet (loss)" },
+          { value: 1, label: "1 — Current" },
+          { value: 2, label: "2 — Special mention" },
+          { value: 3, label: "3 — Substandard" },
+          { value: 4, label: "4 — Doubtful" },
+          { value: 5, label: "5 — Loss" },
         ],
       },
       { key: "hasNpl", label: "Active NPL on bureau", type: "checkbox" },
@@ -245,22 +245,22 @@ function Field({
       ) : (
         <Input
           id={id}
-          type={def.type === "number" || def.type === "idr" ? "number" : def.type === "date" ? "date" : "text"}
-          inputMode={def.type === "idr" || def.type === "number" ? "decimal" : undefined}
+          type={def.type === "number" || def.type === "money" ? "number" : def.type === "date" ? "date" : "text"}
+          inputMode={def.type === "money" || def.type === "number" ? "decimal" : undefined}
           step={def.step}
-          value={def.type === "idr" || def.type === "number" ? (Number(raw) || "") : String(raw ?? "")}
+          value={def.type === "money" || def.type === "number" ? (Number(raw) || "") : String(raw ?? "")}
           onChange={(e) =>
             onChange({
               [def.key]:
-                def.type === "idr" || def.type === "number" ? Number(e.target.value) : e.target.value,
+                def.type === "money" || def.type === "number" ? Number(e.target.value) : e.target.value,
             } as Partial<CreditInput>)
           }
-          className={def.type === "idr" || def.type === "number" ? "tnum" : undefined}
+          className={def.type === "money" || def.type === "number" ? "tnum" : undefined}
         />
       )}
 
-      {def.type === "idr" && Number(raw) > 0 && (
-        <p className="mt-1 text-[0.7rem] text-muted-foreground tnum">{formatIdrCompact(Number(raw))}</p>
+      {def.type === "money" && Number(raw) > 0 && (
+        <p className="mt-1 text-[0.7rem] text-muted-foreground tnum">{formatMoneyCompact(Number(raw))}</p>
       )}
     </div>
   );

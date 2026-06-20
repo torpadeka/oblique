@@ -21,8 +21,8 @@ export interface CreditInput {
   establishedDate: string; // ISO yyyy-mm-dd
 
   // ── Non-identifying business profile (safe to keep) ──
-  sector: string; // e.g. "Konstruksi"
-  industry: string; // e.g. "Konstruksi Gedung"
+  sector: string; // e.g. "Construction"
+  industry: string; // e.g. "Building Construction"
   yearsInBusiness: number;
 
   // ── Facility ──
@@ -59,7 +59,7 @@ export interface CreditInput {
   collateralLiquidationValue: number; // IDR
 
   // ── Credit bureau (SLIK) ──
-  slikQuality: number; // 1 (Lancar/current) .. 5 (Macet/loss)
+  slikQuality: number; // 1 (current) .. 5 (loss)
   hasNpl: boolean;
 }
 
@@ -91,8 +91,8 @@ export interface DeidentifiedFeatures {
   sector: string;
   industry: string;
   companyAgeYears: number;
-  requestedPlafonIdr: number;
-  approvedPlafonIdr: number;
+  requestedAmount: number;
+  approvedAmount: number;
   tenorMonths: number;
   interestRatePct: number;
   repaymentScheme: string;

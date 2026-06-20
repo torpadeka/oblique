@@ -300,8 +300,8 @@ function CredentialPanel({
   const sealed: [string, string][] = [
     ["Company name", input.companyName],
     ["Debtor", input.debtorName],
-    ["NPWP", maskTaxId(input.npwp)],
-    ["NIB", input.nib ? "•••••••" + input.nib.slice(-3) : "—"],
+    ["Tax ID", maskTaxId(input.npwp)],
+    ["Business reg.", input.nib ? "•••••••" + input.nib.slice(-3) : "—"],
     ["Address", input.companyAddress ? input.companyAddress.split(",")[0] + ", •••" : "—"],
     ["Revenue / financials", "••• sealed in enclave"],
   ];

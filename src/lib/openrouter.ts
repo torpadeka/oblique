@@ -37,8 +37,8 @@ function userPrompt(f: DeidentifiedFeatures): string {
       industry: f.industry,
       companyAgeYears: f.companyAgeYears,
       facility: {
-        requestedIdr: f.requestedPlafonIdr,
-        approvedIdr: f.approvedPlafonIdr,
+        requestedAmount: f.requestedAmount,
+        approvedAmount: f.approvedAmount,
         tenorMonths: f.tenorMonths,
         interestRatePct: f.interestRatePct,
         repaymentScheme: f.repaymentScheme,
@@ -74,7 +74,7 @@ function userPrompt(f: DeidentifiedFeatures): string {
 }
 
 export async function analyzeWithLlm(features: DeidentifiedFeatures): Promise<CreditVerdict> {
-  const key = process.env.OPENROUTER_API_KEY;
+  const key = process.env.OPENROUTER_API_KEY?.trim();
   if (!key) return ruleBasedVerdict(features, "rule-based (set OPENROUTER_API_KEY for LLM analysis)");
 
   try {
@@ -89,7 +89,7 @@ export async function analyzeWithLlm(features: DeidentifiedFeatures): Promise<Cr
       body: JSON.stringify({
         model: MODEL,
         temperature: 0.2,
-        max_tokens: 900,
+        max_tokens: 1200,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
@@ -106,7 +106,10 @@ export async function analyzeWithLlm(features: DeidentifiedFeatures): Promise<Cr
     const json = await res.json();
     const content: string = json?.choices?.[0]?.message?.content ?? "";
     const parsed = JSON.parse(extractJson(content));
-    return normalize(parsed, MODEL);
+    // Backfill any arrays the model omitted (flash models occasionally return
+    // empty strengths/risks/conditions under json_object) from the deterministic
+    // reason codes, so the UI is never empty.
+    return backfillVerdict(normalize(parsed, MODEL), features);
   } catch (e) {
     return ruleBasedVerdict(
       features,
@@ -144,11 +147,43 @@ function normalize(p: Record<string, unknown>, model: string): CreditVerdict {
   };
 }
 
-/** Transparent deterministic opinion when no LLM is available. */
-export function ruleBasedVerdict(f: DeidentifiedFeatures, model: string): CreditVerdict {
+/** Derive strengths / risks / conditions from the deterministic reason codes. */
+function deriveLists(f: DeidentifiedFeatures, recommendation: CreditVerdict["recommendation"]) {
   const strengths = f.reasonCodes.filter((r) => r.kind === "positive").map((r) => r.message);
   const risks = f.reasonCodes.filter((r) => r.kind !== "positive").map((r) => r.message);
+  const approving = recommendation === "Approve" || recommendation === "Approve with conditions";
+  const conditions = approving
+    ? [
+        f.collateralCoverageLiquidation < 1.15
+          ? "Top up collateral or reduce exposure to reach ≥1.25× liquidation coverage."
+          : "Maintain collateral insurance and annual revaluation.",
+        "Cash-sweep / DSRA covenant given the bullet repayment profile.",
+        "Quarterly DSCR and project-progress reporting on the joint venture.",
+      ]
+    : [];
+  return {
+    strengths: strengths.length ? strengths : ["Stable fundamentals across the scored pillars."],
+    risks: risks.length ? risks : ["No material risk flags raised by the engine."],
+    conditions,
+  };
+}
 
+/** Fill any arrays the LLM left empty with the deterministic derivations. */
+function backfillVerdict(v: CreditVerdict, f: DeidentifiedFeatures): CreditVerdict {
+  if (v.strengths.length && v.risks.length && (v.conditions.length || !v.recommendation.startsWith("Approve"))) {
+    return v;
+  }
+  const d = deriveLists(f, v.recommendation);
+  return {
+    ...v,
+    strengths: v.strengths.length ? v.strengths : d.strengths,
+    risks: v.risks.length ? v.risks : d.risks,
+    conditions: v.conditions.length ? v.conditions : d.conditions,
+  };
+}
+
+/** Transparent deterministic opinion when no LLM is available. */
+export function ruleBasedVerdict(f: DeidentifiedFeatures, model: string): CreditVerdict {
   let recommendation: CreditVerdict["recommendation"];
   if (f.baselineScore >= 80) recommendation = "Approve";
   else if (f.baselineScore >= 60) recommendation = "Approve with conditions";
@@ -158,24 +193,15 @@ export function ruleBasedVerdict(f: DeidentifiedFeatures, model: string): Credit
   const confidence: CreditVerdict["confidence"] =
     f.dscrPessimistic <= 1.05 || f.collateralCoverageLiquidation < 1.1 ? "Medium" : "High";
 
-  const conditions =
-    recommendation === "Approve with conditions" || recommendation === "Approve"
-      ? [
-          f.collateralCoverageLiquidation < 1.15
-            ? "Top up collateral or reduce exposure to reach ≥1.25× liquidation coverage."
-            : "Maintain collateral insurance and annual revaluation.",
-          "Cash-sweep / DSRA covenant given the bullet repayment profile.",
-          "Quarterly DSCR and project-progress reporting on the KSO.",
-        ]
-      : [];
+  const { strengths, risks, conditions } = deriveLists(f, recommendation);
 
   return {
     recommendation,
     confidence,
     headline: `Baseline ${f.baselineBand} (${f.baselineScore}/100) — ${recommendation.toLowerCase()}.`,
     summary: `Engine scores the borrower ${f.baselineScore}/100 (band ${f.baselineBand}, PD ${f.probabilityOfDefaultPct}%). Coverage is anchored by a moderate-scenario DSCR of ${f.dscrModerate}× and ${f.collateralCoverageLiquidation}× liquidation collateral, against ${f.debtToEquity}× leverage and a ${(f.netMargin * 100).toFixed(1)}% net margin. Key watch item: stress-scenario DSCR of ${f.dscrPessimistic}×.`,
-    strengths: strengths.length ? strengths : ["Stable fundamentals across the scored pillars."],
-    risks: risks.length ? risks : ["No material risk flags raised by the engine."],
+    strengths,
+    risks,
     conditions,
     model,
   };

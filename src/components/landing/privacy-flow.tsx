@@ -8,7 +8,7 @@ const ZONES = [
     tone: "neutral" as const,
     icon: FileLock2,
     title: "Sensitive application",
-    body: "Company name, NPWP, NIB, bank statements, full financials.",
+    body: "Company name, tax ID, registration no., bank statements, full financials.",
     chip: "raw PII",
     chipTone: "danger" as const,
   },
