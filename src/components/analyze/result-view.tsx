@@ -95,7 +95,7 @@ export function ResultView({
       </Card>
 
       <Tabs defaultValue="verdict">
-        <TabsList className="w-full justify-start overflow-x-auto">
+        <TabsList className="w-full justify-start overflow-x-auto overflow-y-hidden">
           <TabsTrigger value="verdict" className="cursor-pointer">Analyst verdict</TabsTrigger>
           <TabsTrigger value="breakdown" className="cursor-pointer">Score breakdown</TabsTrigger>
           <TabsTrigger value="credential" className="cursor-pointer">Credential</TabsTrigger>

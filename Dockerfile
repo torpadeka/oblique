@@ -10,10 +10,15 @@
 # (@napi-rs/canvas-linux-x64-gnu, bare-runtime-linux, etc.) instead of the host's.
 FROM node:22-bookworm
 
-# Runtime libs the native engines / canvas need (fonts for raster, OpenMP for
-# llama.cpp). build tools are already present in the full node image (node-gyp safe).
+# Runtime libs the native engines / canvas need:
+#   fontconfig  → @napi-rs/canvas raster
+#   libgomp1    → llama.cpp OpenMP
+#   libvulkan1  → the llama.cpp prebuild is a Vulkan build and dlopen's the Vulkan
+#                 LOADER at addon-load time even for CPU inference (no GPU needed —
+#                 with no ICD it just reports 0 devices and runs on CPU).
+# build tools are already present in the full node image (node-gyp safe).
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends fontconfig libgomp1 ca-certificates \
+  && apt-get install -y --no-install-recommends fontconfig libgomp1 libvulkan1 ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
