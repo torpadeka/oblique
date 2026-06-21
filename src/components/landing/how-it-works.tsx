@@ -1,5 +1,5 @@
 import { ClipboardList, KeyRound, Cpu, FileBadge2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { DotField } from "@/components/dot-field";
 
 const STEPS = [
   {
@@ -26,30 +26,34 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section id="how" className="border-y border-border/60 bg-muted/30">
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+    <section id="how" className="relative overflow-hidden border-y border-border bg-muted/30">
+      <DotField tone="ink" fade="center" className="opacity-40" />
+      <div className="relative mx-auto max-w-[1200px] px-5 py-20 sm:px-8 sm:py-24">
         <div className="max-w-2xl">
-          <Badge variant="secondary" className="rounded-full">How it works</Badge>
-          <h2 className="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+          <span className="section-label">How it works</span>
+          <h2 className="font-display mt-4 text-balance text-3xl text-foreground sm:text-4xl">
             Four steps from raw application to verifiable score
           </h2>
         </div>
 
-        <ol className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <ol className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((step, i) => {
             const Icon = step.icon;
             return (
-              <li key={step.title} className="relative rounded-2xl border border-border/70 bg-card p-6">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                    <Icon className="size-5" />
+              <li
+                key={step.title}
+                className="relative rounded-lg border border-border bg-card p-6 shadow-[var(--shadow-card)]"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex size-9 items-center justify-center rounded-lg bg-muted text-primary">
+                    <Icon className="size-4" />
                   </span>
-                  <span className="text-sm font-semibold tabular-nums text-muted-foreground">
+                  <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground tnum">
                     0{i + 1}
                   </span>
                 </div>
-                <h3 className="mt-4 font-semibold">{step.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
+                <h3 className="mt-4 font-medium tracking-tight text-foreground">{step.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
               </li>
             );
           })}

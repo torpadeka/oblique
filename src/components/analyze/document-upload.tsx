@@ -69,12 +69,14 @@ export function DocumentUpload({ onParsed, onManual }: Props) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Upload the application documents</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="font-display text-3xl text-foreground sm:text-4xl">
+            Upload the application <span className="text-fog">documents</span>
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
             QVAC reads your PDFs on-device and drafts the application — no field-by-field typing.
           </p>
         </div>
-        <Badge variant="outline" className="gap-1 border-secure/30 text-secure">
+        <Badge variant="secure" className="gap-1">
           <Lock className="size-3" />
           parsed on-device
         </Badge>
@@ -101,14 +103,14 @@ export function DocumentUpload({ onParsed, onManual }: Props) {
               setDragOver(false);
               addFiles(e.dataTransfer.files);
             }}
-            className={`flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-8 text-center transition-colors cursor-pointer ${
-              dragOver ? "border-primary bg-primary/5" : "border-border/70 hover:border-primary/50 hover:bg-muted/30"
+            className={`flex w-full flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-10 text-center transition-colors cursor-pointer ${
+              dragOver ? "border-primary/50 bg-muted/40" : "border-border hover:border-primary/50 hover:bg-muted/40"
             }`}
           >
-            <span className="inline-flex size-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
-              <UploadCloud className="size-6" />
+            <span className="inline-flex size-9 items-center justify-center rounded-lg bg-muted text-primary">
+              <UploadCloud className="size-5" />
             </span>
-            <span className="text-sm font-medium">Drop PDFs here, or click to browse</span>
+            <span className="text-sm font-medium text-foreground">Drop PDFs here, or click to browse</span>
             <span className="text-xs text-muted-foreground">Your documents are parsed locally and never sent to a cloud model.</span>
           </button>
           <input
@@ -128,15 +130,15 @@ export function DocumentUpload({ onParsed, onManual }: Props) {
               {files.map((f, i) => (
                 <li
                   key={f.name + f.size}
-                  className="flex items-center gap-3 rounded-lg border border-border/70 bg-muted/20 px-3 py-2"
+                  className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
                 >
                   <FileText className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate text-sm">{f.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">{f.name}</span>
                   <span className="text-xs text-muted-foreground tnum">{fmtBytes(f.size)}</span>
                   <button
                     type="button"
                     onClick={() => removeFile(i)}
-                    className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                    className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
                     aria-label={`Remove ${f.name}`}
                   >
                     <X className="size-4" />

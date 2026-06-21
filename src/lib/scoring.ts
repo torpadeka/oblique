@@ -17,6 +17,10 @@
  *     Coverage Ratios and Default Spreads" (large non-financial firms),
  *     pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ratings.html — used
  *     for the synthetic-rating cross-check.
+ *   • DSCR: Corporate Finance Institute, "Debt Service Coverage Ratio" —
+ *     (EBITDA − cash taxes) / total debt service; thresholds <1.0 weak, 1.25
+ *     bank minimum, 2.0+ strong. Drives the computed-DSCR sub-factor of Pillar 1.
+ *     corporatefinanceinstitute.com/resources/commercial-lending/debt-service-coverage-ratio/
  * The 7-pillar weights and ratio breakpoints remain a JUDGMENTAL expert
  * scorecard (standard ratios, hand-chosen thresholds), not statistically
  * calibrated on a default dataset — see README.
@@ -46,6 +50,8 @@ function curve(value: number, points: [number, number][]): number {
 export interface ScoringInputs {
   dscrModerate: number;
   dscrPessimistic: number;
+  /** DSCR computed from the financials (CFI definition), not document-supplied. */
+  dscrComputed: number;
   debtToEquity: number;
   debtToAsset: number;
   currentRatio: number;
@@ -148,19 +154,29 @@ export function scoreCredit(x: ScoringInputs): ScoreResult {
   );
 
   // ── Pillar 1: Debt service coverage (25%) ──
+  // Blends the document's scenario DSCRs with a DSCR computed from the financials
+  // (CFI definition) so a rosy submitted DSCR can't carry the pillar by itself.
+  // Computed-DSCR breakpoints follow CFI thresholds: <1.0 weak (owes more than it
+  // earns), 1.25 the common bank minimum, 2.0+ strong.
   const dscrScore = clamp(
-    0.7 * curve(x.dscrModerate, [
+    0.45 * curve(x.dscrModerate, [
       [0.8, 0],
       [1.0, 40],
       [1.25, 70],
       [1.5, 85],
       [2.0, 100],
     ]) +
-      0.3 * curve(x.dscrPessimistic, [
+      0.25 * curve(x.dscrPessimistic, [
         [0.8, 0],
         [1.0, 50],
         [1.25, 85],
         [1.5, 100],
+      ]) +
+      0.3 * curve(x.dscrComputed, [
+        [0.8, 0],
+        [1.0, 40],
+        [1.25, 70],
+        [2.0, 100],
       ]),
   );
 
@@ -260,7 +276,7 @@ export function scoreCredit(x: ScoringInputs): ScoreResult {
   if (isCyclical) profileScore = clamp(profileScore - 12);
 
   const pillars: ScorePillar[] = [
-    { key: "dscr", label: "Debt Service Coverage", weight: 0.25, score: Math.round(dscrScore), detail: `DSCR moderate ${x.dscrModerate.toFixed(2)}× · stress ${x.dscrPessimistic.toFixed(2)}×` },
+    { key: "dscr", label: "Debt Service Coverage", weight: 0.25, score: Math.round(dscrScore), detail: `DSCR moderate ${x.dscrModerate.toFixed(2)}× · stress ${x.dscrPessimistic.toFixed(2)}× · computed ${x.dscrComputed.toFixed(2)}×` },
     { key: "leverage", label: "Leverage", weight: 0.15, score: Math.round(leverageScore), detail: `DER ${x.debtToEquity.toFixed(2)}× · debt/asset ${x.debtToAsset.toFixed(2)}` },
     { key: "liquidity", label: "Liquidity", weight: 0.13, score: Math.round(liquidityScore), detail: `current ${x.currentRatio.toFixed(2)}× · quick ${x.quickRatio.toFixed(2)}×` },
     { key: "profitability", label: "Profitability", weight: 0.15, score: Math.round(profitabilityScore), detail: `net margin ${(x.netMargin * 100).toFixed(1)}% · ROA ${(x.returnOnAssets * 100).toFixed(1)}%` },
@@ -282,6 +298,11 @@ export function scoreCredit(x: ScoringInputs): ScoreResult {
   if (x.dscrModerate >= 1.4) add("positive", "DSCR_STRONG", `Comfortable debt-service cushion (DSCR ${x.dscrModerate.toFixed(2)}× in the moderate scenario).`);
   else if (x.dscrModerate < 1.2) add("watch", "DSCR_THIN", `Limited debt-service headroom (DSCR ${x.dscrModerate.toFixed(2)}×).`);
   if (x.dscrPessimistic <= 1.05) add("watch", "DSCR_STRESS", `Coverage collapses to ${x.dscrPessimistic.toFixed(2)}× under the pessimistic scenario — sensitive to project delays.`);
+
+  // Computed-from-financials DSCR (CFI definition), independent of the submitted figures.
+  if (x.dscrComputed > 0 && x.dscrComputed < 1.0) add("negative", "DSCR_COMPUTED_SUBONE", `Financials-implied DSCR ${x.dscrComputed.toFixed(2)}× is below 1.0 — operating cash flow doesn't cover annual debt service (CFI).`);
+  else if (x.dscrComputed >= 2.0) add("positive", "DSCR_COMPUTED_STRONG", `Financials-implied DSCR ${x.dscrComputed.toFixed(2)}× — strong cash coverage of debt service (≥2× preferred, CFI).`);
+  if (x.dscrComputed > 0 && x.dscrModerate - x.dscrComputed >= 0.4) add("watch", "DSCR_DIVERGENCE", `Submitted moderate DSCR (${x.dscrModerate.toFixed(2)}×) outruns the financials-implied DSCR (${x.dscrComputed.toFixed(2)}×) — verify the projection assumptions.`);
 
   if (x.debtToEquity <= 0.5) add("positive", "LOW_LEVERAGE", `Conservatively geared (DER ${x.debtToEquity.toFixed(2)}×).`);
   else if (x.debtToEquity >= 2) add("negative", "HIGH_LEVERAGE", `Elevated leverage (DER ${x.debtToEquity.toFixed(2)}×).`);

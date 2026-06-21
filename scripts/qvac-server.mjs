@@ -20,6 +20,8 @@
  *   QVAC_PORT          listen port            (default 8787)
  *   QVAC_MODEL_SRC     LLM registry export    (default LLAMA_3_2_1B_INST_Q4_0)
  *   QVAC_CTX_SIZE      LLM context window     (default 8192)
+ *   QVAC_DEVICE        gpu | cpu              (default gpu; use cpu in containers)
+ *   QVAC_GPU_LAYERS    layers offloaded       (default 99; set 0 for cpu)
  *   QVAC_API_KEY       require Bearer token   (optional)
  *   QVAC_OCR_MODE      onnx | vlm             (default onnx; vlm = multimodal, higher fidelity)
  *   QVAC_OCR_MODEL_SRC onnx recognizer export (default OCR_LATIN_RECOGNIZER_1)
@@ -38,7 +40,8 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import * as sdk from "@qvac/sdk";
-import { getDocumentProxy, renderPageAsImage } from "unpdf";
+import { getDocumentProxy, renderPageAsImage, extractImages } from "unpdf";
+import { createCanvas, ImageData } from "@napi-rs/canvas";
 
 const PORT = Number(process.env.QVAC_PORT) || 8787;
 const MODEL_SRC_NAME = process.env.QVAC_MODEL_SRC || "LLAMA_3_2_1B_INST_Q4_0";
@@ -46,6 +49,10 @@ const API_KEY = process.env.QVAC_API_KEY?.trim() || "";
 // Context window. SDK default is 1024 — far too small for multi-page PDFs
 // (3 docs ≈ 4200 tokens). Holds prompt + generated JSON; bump if you overflow.
 const CTX_SIZE = Number(process.env.QVAC_CTX_SIZE) || 8192;
+// Compute device. Default GPU (gpu_layers 99); set QVAC_DEVICE=cpu (and
+// QVAC_GPU_LAYERS=0) for portable / containerized CPU-only runs.
+const DEVICE = (process.env.QVAC_DEVICE || "gpu").toLowerCase();
+const GPU_LAYERS = process.env.QVAC_GPU_LAYERS != null ? Number(process.env.QVAC_GPU_LAYERS) : 99;
 // OCR fallback config (lazy — model loads on first /ocr call, not at boot).
 //   onnx → fast easyocr recognizer, small, but noisy on dense text.
 //   vlm  → multimodal OCR LLM (transcribes page images); far higher fidelity,
@@ -97,7 +104,7 @@ console.log(`[qvac-sidecar] loading model ${MODEL_SRC_NAME} (ctx_size=${CTX_SIZE
 try {
   modelId = await loadModel({
     modelSrc,
-    modelConfig: { ctx_size: CTX_SIZE },
+    modelConfig: { ctx_size: CTX_SIZE, device: DEVICE, gpu_layers: GPU_LAYERS },
     onProgress: (p) => {
       if (p?.percentage != null) process.stdout.write(`\r[qvac-sidecar] download ${p.percentage.toFixed(0)}%   `);
       if (p?.percentage >= 100) process.stdout.write("\n");
@@ -190,7 +197,7 @@ async function ensureOcrModel() {
       console.log(`[qvac-sidecar] loading VLM OCR ${OCR_VLM_SRC_NAME} (+${OCR_VLM_MMPROJ_NAME}, ctx=${OCR_VLM_CTX})…`);
       ocrLoading = loadModel({
         modelSrc: ocrVlmSrc,
-        modelConfig: { ctx_size: OCR_VLM_CTX, projectionModelSrc: ocrVlmMmproj },
+        modelConfig: { ctx_size: OCR_VLM_CTX, projectionModelSrc: ocrVlmMmproj, device: DEVICE, gpu_layers: GPU_LAYERS },
         onProgress: (p) => {
           if (p?.percentage != null) process.stdout.write(`\r[qvac-sidecar] OCR download ${p.percentage.toFixed(0)}%   `);
           if (p?.percentage >= 100) process.stdout.write("\n");
@@ -218,11 +225,46 @@ async function ensureOcrModel() {
 
 /** Rasterize one PDF page to a PNG Buffer at the given scale. */
 async function pageToPng(pdf, pageNumber, scale) {
-  const ab = await renderPageAsImage(pdf, pageNumber, {
-    canvasImport: () => import("@napi-rs/canvas"),
-    scale,
-  });
-  return Buffer.from(ab);
+  try {
+    const ab = await renderPageAsImage(pdf, pageNumber, {
+      canvasImport: () => import("@napi-rs/canvas"),
+      scale,
+    });
+    return Buffer.from(ab);
+  } catch (e) {
+    // pdf.js can't composite image XObjects in Node ("@napi-rs/canvas is not
+    // available in this environment") — exactly the scanned/image-only PDFs OCR
+    // exists for. Pull the embedded page image directly instead of compositing.
+    const png = await embeddedImageToPng(pdf, pageNumber);
+    if (png) return png;
+    throw e;
+  }
+}
+
+/**
+ * Extract the dominant embedded image of a page and encode it to PNG, bypassing
+ * pdf.js's broken in-Node image-render path. Returns null if the page has no
+ * embedded image. (Multi-image pages: OCRs only the largest — fine for scans.)
+ */
+async function embeddedImageToPng(pdf, pageNumber) {
+  const imgs = await extractImages(pdf, pageNumber);
+  if (!imgs?.length) return null;
+  const im = imgs.sort((a, b) => b.width * b.height - a.width * a.height)[0];
+  const { data, width, height, channels } = im;
+  const rgba = new Uint8ClampedArray(width * height * 4);
+  for (let i = 0, j = 0; i < width * height; i++) {
+    if (channels === 1) {
+      const v = data[i];
+      rgba[j++] = v; rgba[j++] = v; rgba[j++] = v; rgba[j++] = 255;
+    } else if (channels === 4) {
+      rgba[j++] = data[i * 4]; rgba[j++] = data[i * 4 + 1]; rgba[j++] = data[i * 4 + 2]; rgba[j++] = data[i * 4 + 3];
+    } else {
+      rgba[j++] = data[i * 3]; rgba[j++] = data[i * 3 + 1]; rgba[j++] = data[i * 3 + 2]; rgba[j++] = 255;
+    }
+  }
+  const canvas = createCanvas(width, height);
+  canvas.getContext("2d").putImageData(new ImageData(rgba, width, height), 0, 0);
+  return canvas.toBuffer("image/png");
 }
 
 /** OCR an image Buffer → text. onnx: recognizer blocks; vlm: transcribe via completion(). */

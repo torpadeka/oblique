@@ -48,7 +48,7 @@ A distinct **agent identity** (`T3N_AGENT_KEY`) acts on behalf of the **user ide
 
 > **Design choice for integrity:** the score is deterministic and runs in the boundary (auditable for the banks/regulators Terminal 3 serves). The LLM never runs in the TEE and never sees raw PII — only the de-identified feature set. Sending those de-identified aggregates to an external model (OpenRouter) is safe *because* the TEE already stripped every identifier.
 
-> **Calibration sources:** the **probability-of-default** figures are S&P Global Ratings' average one-year corporate default rates by grade, 1981–2009 through-the-cycle (*Annual Global Corporate Default Study And Rating Transition*); the **interest-coverage → synthetic-rating** cross-check uses [Damodaran's (NYU Stern) interest-coverage/ratings table](https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ratings.html). The 7-pillar weights and ratio breakpoints remain a **judgmental expert scorecard** (standard ratios, hand-chosen thresholds) — not statistically fit on a default dataset, as a production IRB model would be.
+> **Calibration sources:** the **probability-of-default** figures are S&P Global Ratings' average one-year corporate default rates by grade, 1981–2009 through-the-cycle (*Annual Global Corporate Default Study And Rating Transition*); the **interest-coverage → synthetic-rating** cross-check uses [Damodaran's (NYU Stern) interest-coverage/ratings table](https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ratings.html); the **computed DSCR** sub-factor of Pillar 1 follows [CFI's Debt Service Coverage Ratio](https://corporatefinanceinstitute.com/resources/commercial-lending/debt-service-coverage-ratio/) — `(EBITDA − cash taxes) / total debt service`, thresholds <1.0 weak / 1.25 bank minimum / 2.0+ strong — recomputed from the financials so an optimistic submitted DSCR can't carry the score. The 7-pillar weights and remaining ratio breakpoints stay a **judgmental expert scorecard** (standard ratios, hand-chosen thresholds) — not statistically fit on a default dataset, as a production IRB model would be.
 
 ---
 
@@ -66,6 +66,7 @@ upload PDFs ──▶ extract text (unpdf, local) ──▶ QVAC LLM (on-device)
 - **Graceful degrade.** With no QVAC runtime configured, a deterministic local heuristic parser (label/regex) drafts the application instead — fully offline, zero external calls. The receipt shows exactly which engine ran.
 - **Validation = Zod** (the idiomatic TypeScript "Pydantic"): the parsed JSON, whose shape varies per document, is coerced into the strict `CreditInput` contract (`"$17,000,000"` → `17000000`, `"1.45×"` → `1.45`, bureau grade clamped to 1–5) and the fields it couldn't find are surfaced for the user to review before scoring.
 - **Human-in-the-loop.** The draft pre-fills the form; the user reviews/corrects, then the *validated* application flows into the existing seal → score → credential pipeline unchanged.
+- **Flexible capture, fixed scoring.** Facts the document carries that don't map to one of the fixed fields (guarantors, covenants, project milestones, ESG notes) are captured into an open `extras` bag so nothing is lost. They are **never** fed to the deterministic score (which needs named, typed inputs), and only a **de-identified subset** crosses to the analyst: the firewall (`deidentify`) drops any extra containing a known identifier or an email/phone/id pattern, and `assertNoPii` hard-fails if anything slips. The clean subset reaches OpenRouter as soft qualitative context.
 
 A pseudonymised `sample-credit-memo.pdf` is bundled (and downloadable from the upload screen) so the whole flow — extract → parse → validate → prefill — is demoable offline via the heuristic parser; point `QVAC_BASE_URL` at a real QVAC runtime for higher-fidelity extraction of free-form documents.
 
@@ -105,6 +106,23 @@ OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
 ```
 
 Open `/analyze`. Either **upload a PDF** (grab the bundled **Sample memo PDF** from the upload screen to try it offline) and let QVAC draft the application, or click **Enter manually instead** → **Load sample**. Review the parsed/entered figures, then **Score application** — watch it seal + delegate on Terminal 3, score in the boundary, and issue a credential.
+
+### Run with Docker (one command, on-device models included)
+
+The whole stack — the Next.js app **and** the on-device QVAC runtime (Bare + llama.cpp, real GGUF models) — runs from one command:
+
+```bash
+docker compose up --build      # then open http://localhost:3000
+```
+
+Two services come up from one image: `web` (the app) and `qvac` (the on-device sidecar). On first run the QVAC model downloads once to a named volume (`qvac-models`) — a few GB — then starts instantly afterwards.
+
+- **No secrets needed.** With no `.env`, QVAC parsing runs in-container, Terminal 3 degrades gracefully, and the analyst falls back to the deterministic rule-based verdict — the full flow still works. Add a `.env` (copy `.env.example`) to light up live Terminal 3 + the OpenRouter analyst.
+- **CPU by default** (portable — no GPU needed). Containers run `QVAC_DEVICE=cpu`; the 4B extractor is slower on CPU but works. For a snappier demo set `QVAC_MODEL_SRC=LLAMA_3_2_1B_INST_Q4_0` in `docker-compose.yml`. Give Docker **≥ 8 GB RAM** (the 4B model + KV cache).
+- **GPU (optional):** with the NVIDIA Container Toolkit, add a `deploy.resources.reservations.devices` GPU reservation to the `qvac` service and set `QVAC_DEVICE=gpu`, `QVAC_GPU_LAYERS=99`.
+- **Scanned-PDF OCR:** the container defaults to the light `onnx` OCR; for high-fidelity transcription set `QVAC_OCR_MODE=vlm` (downloads ~1 GB more; slow on CPU).
+
+Why this works in a container: `@qvac/sdk` ships **linux-x64 glibc prebuilds** for its native engines, and dependencies are installed *inside* the image (so the linux binaries — `@napi-rs/canvas-linux-x64-gnu`, the Bare runtime, llama.cpp, onnx — resolve correctly rather than the host's). The image is Debian-based (glibc), **not** Alpine/musl.
 
 ---
 

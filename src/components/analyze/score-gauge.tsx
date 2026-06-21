@@ -29,7 +29,6 @@ export function ScoreGauge({
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const pct = Math.max(0, Math.min(100, score)) / 100;
-  const color = bandColor(band);
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -39,7 +38,7 @@ export function ScoreGauge({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="var(--muted)"
+          stroke="var(--border)"
           strokeWidth={stroke}
         />
         <circle
@@ -47,7 +46,7 @@ export function ScoreGauge({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={color}
+          stroke="var(--value)"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
@@ -56,12 +55,9 @@ export function ScoreGauge({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-5xl font-semibold tnum leading-none">{score}</span>
-        <span className="mt-1 text-xs text-muted-foreground">/ 100</span>
-        <span
-          className="mt-2 rounded-full px-2.5 py-0.5 text-sm font-bold"
-          style={{ color, backgroundColor: "color-mix(in oklch, " + color + " 15%, transparent)" }}
-        >
+        <span className="font-display text-6xl font-light text-value tnum leading-none">{score}</span>
+        <span className="mt-1 font-mono text-[11px] uppercase tracking-wider text-muted-foreground tnum">/ 100</span>
+        <span className="mt-2 rounded-full bg-muted px-2.5 py-0.5 text-sm font-medium text-foreground tnum">
           {band}
         </span>
       </div>

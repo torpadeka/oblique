@@ -17,7 +17,7 @@
  * the firewall. OpenRouter only ever sees the de-identified features, downstream.
  */
 
-import { FIELD_LABELS } from "@/lib/schema";
+import { FIELD_LABELS, type CreditField } from "@/lib/schema";
 import type { CreditInput, T3Step } from "@/lib/types";
 import type { ExtractedDoc } from "./extract";
 
@@ -70,7 +70,7 @@ export interface QvacExtraction {
   note: string;
 }
 
-const FIELD_KEYS = Object.keys(FIELD_LABELS) as (keyof CreditInput)[];
+const FIELD_KEYS = Object.keys(FIELD_LABELS) as CreditField[];
 
 function systemPrompt(): string {
   const fieldList = FIELD_KEYS.map((k) => `  "${k}": ${typeHint(k)}  // ${FIELD_LABELS[k]}`).join("\n");
@@ -83,17 +83,19 @@ Rules:
 - Ratios (DSCR): decimal numbers (e.g. 1.45).
 - Dates: ISO yyyy-mm-dd.
 - slikQuality: bureau grade 1 (current) to 5 (loss). hasNpl: true/false.
+- Additionally, capture any other MATERIAL facts the document states that do not fit a field above — e.g. guarantors, covenants, conditions precedent, project milestones, ESG/sustainability notes, management commentary — into an "extras" object of short "label": "value" strings. Keep labels concise. Do NOT duplicate the fixed fields into extras. Omit "extras" entirely if there are none.
 
 Schema:
 {
-${fieldList}
+${fieldList},
+  "extras": { "<short label>": "<value>" }  // facts that fit no field above; omit if none
 }`;
 }
 
-function typeHint(k: keyof CreditInput): string {
+function typeHint(k: CreditField): string {
   if (k === "hasNpl") return "boolean";
   if (k === "slikQuality") return "1-5";
-  const numeric: (keyof CreditInput)[] = [
+  const numeric: CreditField[] = [
     "yearsInBusiness", "plafonRequested", "plafonApproved", "tenorMonths", "interestRate",
     "revenue", "cogs", "operatingProfit", "netIncome", "ebitda", "interestExpense",
     "totalAssets", "totalEquity", "totalLiabilities", "currentAssets", "currentLiabilities",

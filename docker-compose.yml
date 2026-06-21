@@ -1,0 +1,68 @@
+# Oblique — one command to run the whole stack locally:
+#
+#     docker compose up --build
+#
+# Then open http://localhost:3000.
+#
+# Two services from one image: the Next.js app (web) and the on-device QVAC
+# sidecar (qvac). Models download once to the `qvac-models` volume on first run
+# (a few GB — see notes below), then start instantly thereafter.
+#
+# NO secrets required: with no .env, QVAC parsing runs in-container, Terminal 3
+# degrades gracefully, and the analyst falls back to the deterministic rule-based
+# verdict — the full flow still works. Add a .env (copy .env.example) to light up
+# live Terminal 3 + the OpenRouter analyst.
+
+services:
+  qvac:
+    build: .
+    image: oblique
+    command: ["node", "scripts/qvac-server.mjs"]
+    environment:
+      QVAC_PORT: "8787"
+      # 4B model is the strong 36-field extractor; on CPU it's slower but fine.
+      # For a snappier demo set QVAC_MODEL_SRC=LLAMA_3_2_1B_INST_Q4_0.
+      QVAC_MODEL_SRC: "QWEN3_4B_INST_Q4_K_M"
+      QVAC_CTX_SIZE: "8192"
+      # Containers are CPU-only by default (portable). See README for GPU.
+      QVAC_DEVICE: "cpu"
+      QVAC_GPU_LAYERS: "0"
+      # onnx OCR is light + responsive on CPU; vlm is far better but slow on CPU.
+      QVAC_OCR_MODE: "onnx"
+      QVAC_OCR_GPU: "0"
+    volumes:
+      - qvac-models:/root/.qvac
+    ports:
+      - "8787:8787"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 900s # first run downloads the model
+    restart: unless-stopped
+
+  web:
+    build: .
+    image: oblique
+    command: ["npm", "run", "start"]
+    environment:
+      # The app talks to the sidecar over the compose network.
+      QVAC_BASE_URL: "http://qvac:8787/v1"
+      QVAC_MODEL: "qvac-local"
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
+    # Optional live keys (Terminal 3 wallet key, OpenRouter). Absent = graceful degrade.
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "3000:3000"
+    depends_on:
+      # Start the web app immediately; the sidecar warms models in the background.
+      qvac:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  qvac-models:

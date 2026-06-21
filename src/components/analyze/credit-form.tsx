@@ -133,10 +133,10 @@ export function CreditForm({ value, onChange, onSubmit, onLoadSample, onReset, q
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="font-display text-3xl text-foreground sm:text-4xl">
             {fromDocs ? "Review the parsed application" : "New credit assessment"}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground">
             {fromDocs
               ? "QVAC drafted this from your documents — check the figures, then score."
               : "Enter the application, or load the sample memo."}
@@ -157,8 +157,8 @@ export function CreditForm({ value, onChange, onSubmit, onLoadSample, onReset, q
       </div>
 
       {qvacReceipt && (
-        <Card className="border-primary/30 bg-primary/[0.03]">
-          <CardContent className="pt-6">
+        <Card className="border-secure/30 bg-secure-muted/15 dark:bg-secure/[0.06]">
+          <CardContent>
             <QvacReceiptCard receipt={qvacReceipt} />
           </CardContent>
         </Card>
@@ -168,9 +168,9 @@ export function CreditForm({ value, onChange, onSubmit, onLoadSample, onReset, q
         <Card key={section.title}>
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base">{section.title}</CardTitle>
+              <CardTitle>{section.title}</CardTitle>
               {section.pii && (
-                <Badge variant="outline" className="gap-1 border-secure/30 text-secure">
+                <Badge variant="secure" className="gap-1">
                   <Lock className="size-3" />
                   sealed · stripped
                 </Badge>
@@ -189,7 +189,7 @@ export function CreditForm({ value, onChange, onSubmit, onLoadSample, onReset, q
       ))}
 
       <div className="sticky bottom-4 z-10">
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-card/90 px-4 py-3 shadow-lg backdrop-blur">
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card/90 px-4 py-3 shadow-[var(--shadow-float)] backdrop-blur">
           <p className="hidden text-sm text-muted-foreground sm:block">
             On submit, the application is sealed on Terminal 3 and scored in the enclave.
           </p>
@@ -219,7 +219,7 @@ function Field({
     return (
       <label
         htmlFor={id}
-        className="flex cursor-pointer items-center gap-2.5 self-end rounded-lg border border-border/70 px-3 py-2.5 text-sm"
+        className="flex cursor-pointer items-center gap-2.5 self-end rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground"
       >
         <input
           id={id}
@@ -235,7 +235,7 @@ function Field({
 
   return (
     <div className={def.full ? "sm:col-span-2 lg:col-span-3" : undefined}>
-      <Label htmlFor={id} className="mb-1.5 text-xs text-muted-foreground">
+      <Label htmlFor={id} className="mb-1.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
         {def.label}
       </Label>
 
@@ -251,7 +251,7 @@ function Field({
           id={id}
           value={Number(raw)}
           onChange={(e) => onChange({ [def.key]: Number(e.target.value) } as Partial<CreditInput>)}
-          className="flex h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="flex h-8 w-full rounded-lg border border-input bg-card px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
         >
           {def.options?.map((o) => (
             <option key={o.value} value={o.value}>

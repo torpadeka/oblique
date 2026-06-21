@@ -31,6 +31,10 @@ Respond with STRICT JSON only (no markdown, no prose outside the object), matchi
 Be concrete and reference the actual numbers. Keep arrays to 2-5 items.`;
 
 function userPrompt(f: DeidentifiedFeatures): string {
+  const extras =
+    f.extrasContext && Object.keys(f.extrasContext).length
+      ? `\n\nAdditional de-identified borrower context (qualitative notes extracted from the documents — identifiers already stripped; weigh as soft signals, not scored inputs):\n${JSON.stringify(f.extrasContext, null, 2)}`
+      : "";
   return `De-identified borrower features:\n${JSON.stringify(
     {
       sector: f.sector,
@@ -47,6 +51,7 @@ function userPrompt(f: DeidentifiedFeatures): string {
         dscrModerate: f.dscrModerate,
         dscrOptimistic: f.dscrOptimistic,
         dscrPessimistic: f.dscrPessimistic,
+        dscrComputedFromFinancials: f.dscrComputed,
         interestCoverage: f.interestCoverage,
         collateralCoverageLiquidation: f.collateralCoverageLiquidation,
         collateralCoverageMarket: f.collateralCoverageMarket,
@@ -70,7 +75,7 @@ function userPrompt(f: DeidentifiedFeatures): string {
     },
     null,
     2,
-  )}\n\nProduce the JSON verdict.`;
+  )}${extras}\n\nProduce the JSON verdict.`;
 }
 
 export async function analyzeWithLlm(features: DeidentifiedFeatures): Promise<CreditVerdict> {

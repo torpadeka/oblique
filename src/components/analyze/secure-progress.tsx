@@ -11,7 +11,7 @@ const STATUS_ICON: Record<T3Step["status"], React.ReactNode> = {
   error: <X className="size-3.5" />,
 };
 const STATUS_RING: Record<T3Step["status"], string> = {
-  ok: "bg-secure/15 text-secure border-secure/30",
+  ok: "bg-secure-muted text-secure border-secure/30",
   skipped: "bg-muted text-muted-foreground border-border",
   error: "bg-destructive/10 text-destructive border-destructive/30",
 };
@@ -32,18 +32,19 @@ export function SecureProgress({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="inline-flex size-10 items-center justify-center rounded-xl bg-secure/15 text-secure">
+        <span className="inline-flex size-10 items-center justify-center rounded-lg bg-secure-muted text-secure">
           <ShieldCheck className="size-5" />
         </span>
         <div>
-          <h2 className="text-lg font-semibold">Sealing & scoring on Terminal 3</h2>
+          <h2 className="font-display text-xl text-foreground">Sealing & scoring on Terminal 3</h2>
           <p className="text-sm text-muted-foreground">
             Identity, vault, delegation, confidential compute, credential.
           </p>
         </div>
         {receipt && (
           <Badge
-            className={`ml-auto rounded-full ${receipt.mode === "live" ? "bg-secure/15 text-secure border-transparent" : "bg-muted text-muted-foreground"}`}
+            variant={receipt.mode === "live" ? "secure" : "secondary"}
+            className="ml-auto rounded-full"
           >
             {receipt.mode === "live" ? "live · testnet" : "fallback"}
           </Badge>
@@ -69,8 +70,8 @@ export function SecureProgress({
           return (
             <li
               key={step.id}
-              className={`flex items-start gap-3 rounded-xl border p-3.5 transition-all duration-500 ${
-                isRevealed ? "opacity-100 border-border/70" : "opacity-40 border-border/40"
+              className={`flex items-start gap-3 rounded-lg border bg-card p-3.5 shadow-[var(--shadow-card)] transition-all duration-500 ${
+                isRevealed ? "opacity-100 border-border" : "opacity-40 border-border/40"
               }`}
             >
               <span
@@ -83,7 +84,7 @@ export function SecureProgress({
                 ) : isRevealed && receipt ? (
                   STATUS_ICON[step.status]
                 ) : (
-                  <span className="text-[0.65rem] tnum">{i + 1}</span>
+                  <span className="font-mono text-[0.65rem] tnum">{i + 1}</span>
                 )}
               </span>
               <div className="min-w-0">
@@ -102,12 +103,12 @@ export function SecureProgress({
 
 function IdentityCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+    <div className="rounded-lg border border-border bg-card p-3 shadow-[var(--shadow-card)]">
+      <div className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
         {icon}
         {label}
       </div>
-      <p className="mt-1 font-mono text-sm break-all">{value}</p>
+      <p className="mt-1 font-mono text-sm break-all text-foreground tnum">{value}</p>
     </div>
   );
 }

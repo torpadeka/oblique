@@ -21,13 +21,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { ScoreGauge, bandColor } from "@/components/analyze/score-gauge";
+import { ScoreGauge } from "@/components/analyze/score-gauge";
 import { formatPct, formatRatio, maskTaxId, shorten } from "@/lib/format";
 import type { CreditInput, CreditVerdict, SecureResult } from "@/lib/types";
 
 const REC_TONE: Record<string, string> = {
-  Approve: "bg-secure/15 text-secure border-secure/30",
-  "Approve with conditions": "bg-primary/15 text-primary border-primary/30",
+  Approve: "bg-secure-muted text-secure border-secure/30",
+  "Approve with conditions": "bg-secure-muted/60 text-secure border-secure/20",
   Refer: "bg-muted text-foreground border-border",
   Decline: "bg-destructive/10 text-destructive border-destructive/30",
 };
@@ -48,7 +48,7 @@ export function ResultView({
   return (
     <div className="space-y-6">
       {/* ── Summary banner ── */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden border-border shadow-[var(--shadow-float)]">
         <div className="grid gap-6 p-6 sm:grid-cols-[auto_1fr] sm:items-center">
           <div className="flex justify-center">
             <ScoreGauge score={features.baselineScore} band={features.baselineBand} />
@@ -60,18 +60,25 @@ export function ResultView({
                   {verdict.recommendation}
                 </Badge>
               )}
-              <Badge variant="outline" className="gap-1 border-secure/30 text-secure">
+              <Badge variant="secure" className="gap-1 rounded-full px-3 py-1">
                 <ShieldCheck className="size-3.5" />
                 {receipt.mode === "live" ? "TEE-attested · testnet" : "fallback"}
               </Badge>
               {verdict && (
-                <span className="text-xs text-muted-foreground">confidence: {verdict.confidence}</span>
+                <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground tnum">
+                  confidence: {verdict.confidence}
+                </span>
               )}
             </div>
-            <p className="text-lg font-medium text-balance">
-              {verdict?.headline ?? "Deterministic score computed inside the boundary."}
+            <p className="font-display text-2xl text-foreground text-balance">
+              {verdict?.headline ?? (
+                <>
+                  Deterministic score computed{" "}
+                  <span className="text-fog">inside the boundary.</span>
+                </>
+              )}
             </p>
-            <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+            <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
               <Stat label="Probability of default" value={formatPct(features.probabilityOfDefaultPct)} />
               <Stat label="DSCR (moderate)" value={formatRatio(features.dscrModerate)} />
               <Stat label="Collateral coverage" value={formatRatio(features.collateralCoverageLiquidation)} />
@@ -115,8 +122,8 @@ export function ResultView({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="font-semibold tnum">{value}</div>
+      <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-lg font-medium text-foreground tnum">{value}</div>
     </div>
   );
 }
@@ -135,7 +142,7 @@ function VerdictPanel({ verdict }: { verdict: CreditVerdict | null }) {
       <Card className="lg:col-span-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-2 font-display text-lg text-foreground">
               <Bot className="size-4 text-primary" />
               Agent analyst opinion
             </CardTitle>
@@ -146,7 +153,7 @@ function VerdictPanel({ verdict }: { verdict: CreditVerdict | null }) {
           <CardDescription>Reasoned over de-identified features only — no raw data.</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm leading-relaxed">{verdict.summary}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">{verdict.summary}</p>
         </CardContent>
       </Card>
 
@@ -171,11 +178,11 @@ function ListCard({
   empty?: string;
 }) {
   const toneClass =
-    tone === "secure" ? "text-secure" : tone === "warn" ? "text-[oklch(0.72_0.17_55)]" : "text-primary";
+    tone === "secure" ? "text-secure" : tone === "warn" ? "text-value" : "text-primary";
   return (
     <Card>
       <CardHeader>
-        <CardTitle className={`flex items-center gap-2 text-sm ${toneClass}`}>
+        <CardTitle className={`flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider ${toneClass}`}>
           {icon}
           {title}
         </CardTitle>
@@ -205,24 +212,23 @@ function BreakdownPanel({ result }: { result: SecureResult }) {
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Weighted pillars</CardTitle>
+          <CardTitle className="font-display text-lg text-foreground">Weighted pillars</CardTitle>
           <CardDescription>Deterministic — each pillar is auditable arithmetic.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {features.pillars.map((p) => (
             <div key={p.key}>
               <div className="flex items-baseline justify-between text-sm">
-                <span className="font-medium">{p.label}</span>
-                <span className="text-muted-foreground tnum">
+                <span className="font-medium text-foreground">{p.label}</span>
+                <span className="font-mono text-xs text-muted-foreground tnum">
                   {p.score} · w{Math.round(p.weight * 100)}%
                 </span>
               </div>
               <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full"
+                  className="h-full rounded-full bg-foreground"
                   style={{
                     width: `${p.score}%`,
-                    backgroundColor: bandColor(features.baselineBand),
                     transition: "width 0.8s cubic-bezier(0.22,1,0.36,1)",
                   }}
                 />
@@ -235,12 +241,12 @@ function BreakdownPanel({ result }: { result: SecureResult }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Reason codes</CardTitle>
+          <CardTitle className="font-display text-lg text-foreground">Reason codes</CardTitle>
           <CardDescription>Machine-readable drivers behind the score.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {features.reasonCodes.map((r) => (
-            <div key={r.code} className="flex items-start gap-2.5 rounded-lg border border-border/60 p-2.5">
+            <div key={r.code} className="flex items-start gap-2.5 rounded-lg border border-border bg-muted/30 p-2.5">
               <Badge
                 variant="outline"
                 className={`shrink-0 font-mono text-[0.65rem] ${
@@ -315,18 +321,18 @@ function CredentialPanel({
     <div className="grid gap-4 lg:grid-cols-2">
       <Card className="border-secure/30">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 font-display text-lg text-foreground">
             <BadgeCheck className="size-4 text-secure" />
             What the lender verifies
           </CardTitle>
           <CardDescription>The credential subject — selective disclosure, 0 raw fields.</CardDescription>
         </CardHeader>
         <CardContent>
-          <dl className="divide-y divide-border/60">
+          <dl className="divide-y divide-border">
             {lenderView.map(([k, v]) => (
               <div key={k} className="flex items-center justify-between py-2 text-sm">
                 <dt className="text-muted-foreground">{k}</dt>
-                <dd className="font-semibold tnum">{v}</dd>
+                <dd className="font-medium text-foreground tnum">{v}</dd>
               </div>
             ))}
           </dl>
@@ -336,7 +342,7 @@ function CredentialPanel({
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-2 font-display text-lg text-foreground">
               <EyeOff className="size-4 text-muted-foreground" />
               What stays sealed
             </CardTitle>
@@ -348,11 +354,11 @@ function CredentialPanel({
           <CardDescription>Never leaves the enclave; the LLM and lender never see it.</CardDescription>
         </CardHeader>
         <CardContent>
-          <dl className="divide-y divide-border/60">
+          <dl className="divide-y divide-border">
             {sealed.map(([k, v]) => (
               <div key={k} className="flex items-center justify-between py-2 text-sm">
                 <dt className="text-muted-foreground">{k}</dt>
-                <dd className={`tnum ${showSealed ? "font-medium" : "blur-[5px] select-none"}`}>{v}</dd>
+                <dd className={`text-foreground tnum ${showSealed ? "font-medium" : "blur-[5px] select-none"}`}>{v}</dd>
               </div>
             ))}
           </dl>
@@ -362,7 +368,7 @@ function CredentialPanel({
       <Card className="lg:col-span-2">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base">Verifiable credential</CardTitle>
+            <CardTitle className="font-display text-lg text-foreground">Verifiable credential</CardTitle>
             <Button variant="outline" size="sm" onClick={copy} className="cursor-pointer">
               <Copy />
               Copy JSON
@@ -370,11 +376,11 @@ function CredentialPanel({
           </div>
           <CardDescription>
             Issued by the agent DID, bound to feature commitment{" "}
-            <span className="font-mono">{shorten(credential.credentialSubject.featureCommitment, 10, 8)}</span>.
+            <span className="font-mono text-foreground">{shorten(credential.credentialSubject.featureCommitment, 10, 8)}</span>.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <pre className="max-h-80 overflow-auto rounded-lg border border-border/60 bg-muted/40 p-4 text-xs leading-relaxed">
+          <pre className="max-h-80 overflow-auto rounded-lg border border-border bg-muted/40 p-4 text-xs leading-relaxed text-foreground">
             <code>{JSON.stringify(credential, null, 2)}</code>
           </pre>
           <p className="mt-2 text-xs text-muted-foreground">
@@ -405,9 +411,10 @@ function ReceiptPanel({ result }: { result: SecureResult }) {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base">Pipeline steps</CardTitle>
+            <CardTitle className="font-display text-lg text-foreground">Pipeline steps</CardTitle>
             <Badge
-              className={`rounded-full ${receipt.mode === "live" ? "bg-secure/15 text-secure border-transparent" : "bg-muted text-muted-foreground"}`}
+              variant={receipt.mode === "live" ? "secure" : "secondary"}
+              className="rounded-full"
             >
               {receipt.mode} · {receipt.environment}
             </Badge>
@@ -416,10 +423,10 @@ function ReceiptPanel({ result }: { result: SecureResult }) {
         </CardHeader>
         <CardContent className="space-y-2">
           {receipt.steps.map((s) => (
-            <div key={s.id} className="flex items-start gap-3 rounded-lg border border-border/60 p-3">
+            <div key={s.id} className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
               <Badge
                 variant="outline"
-                className={`shrink-0 ${
+                className={`shrink-0 font-mono text-[0.65rem] ${
                   s.status === "ok"
                     ? "border-secure/30 text-secure"
                     : s.status === "error"
@@ -430,7 +437,7 @@ function ReceiptPanel({ result }: { result: SecureResult }) {
                 {s.status}
               </Badge>
               <div>
-                <p className="text-sm font-medium">{s.label}</p>
+                <p className="text-sm font-medium text-foreground">{s.label}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{s.detail}</p>
               </div>
             </div>
@@ -443,12 +450,12 @@ function ReceiptPanel({ result }: { result: SecureResult }) {
 
 function IdCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+    <div className="rounded-lg border border-border bg-card p-3 shadow-[var(--shadow-card)]">
+      <div className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
         {icon}
         {label}
       </div>
-      <p className="mt-1 font-mono text-xs break-all">{value}</p>
+      <p className="mt-1 font-mono text-xs break-all text-foreground tnum">{value}</p>
     </div>
   );
 }

@@ -10,9 +10,33 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-heading: var(--font-sans);
+
+  /* security / verified pillar → forest teal + pale cyan */
   --color-secure: var(--secure);
   --color-secure-foreground: var(--secure-foreground);
   --color-secure-muted: var(--secure-muted);
+  /* rationed value accent → ember orange (the credit score, one featured number) */
+  --color-value: var(--value);
+  --color-value-foreground: var(--value-foreground);
+
+  /* ── Column raw palette (use sparingly, for accents/illustration) ── */
+  --color-paper-white: #f6f6f8;
+  --color-card-white: #ffffff;
+  --color-deep-ink: #011821;
+  --color-carbon: #12161e;
+  --color-slate: #7c7f88;
+  --color-mist: #e3e4e8;
+  --color-fog: #a9acb6;
+  --color-graphite: #3b3e47;
+  --color-deep-indigo: #111a4a;
+  --color-ember-orange: #ec652b;
+  --color-midnight-teal: #023247;
+  --color-forest-teal: #167e6c;
+  --color-sky-blue: #7ea7e9;
+  --color-pale-cyan: #c1e8ef;
+  --color-mint: #44b48b;
+  --color-lavender: #9f7aee;
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -42,105 +66,126 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* 8px is the load-bearing Column radius */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2.25);
+  --radius-3xl: calc(var(--radius) * 3);
+  --radius-4xl: calc(var(--radius) * 3.6);
+
+  /* Blue-tinted elevation — every shadow carries the indigo tint, never pure black */
+  --shadow-card:
+    rgba(17, 26, 74, 0.1) 0px 1px 3px 0px, rgba(17, 26, 74, 0.05) 0px 1px 0px 0px,
+    rgba(255, 255, 255, 0.5) 0px 1px 0px 0px inset, rgba(255, 255, 255, 0.5) 0px 1px 4px 0px inset;
+  --shadow-hair: rgba(87, 90, 100, 0.12) 0px 0px 0px 1px;
+  --shadow-float:
+    rgba(17, 26, 74, 0.04) 0px 40px 32px 0px, rgba(17, 26, 74, 0.05) 0px 22px 18px 0px,
+    rgba(17, 26, 74, 0.05) 0px 12px 10px 0px, rgba(17, 26, 74, 0.06) 0px 7px 5px 0px,
+    rgba(17, 26, 74, 0.08) 0px 3px 2px 0px;
+  --shadow-btn: rgba(17, 26, 74, 0.18) 0px 1px 2px 0px;
 }
 
-/* ── Oblique design system ───────────────────────────────────────────
-   Base: slate / navy. Dark-first, full light mode, WCAG AA.
-   Meaningful two-accent system:
-     primary  = amber/gold   → credit score, value, primary CTA
-     secure   = emerald/teal → security, TEE, verified (the privacy pillar)
+/* ── Oblique × "Column" design system ─────────────────────────────────
+   Swiss-precision banking ledger on a halftone atlas. Paper-white canvas,
+   deep-ink type, deep-indigo primary action. Color is rationed:
+     primary = deep indigo  → primary actions / CTAs
+     value   = ember orange → the credit score (one featured number)
+     secure  = forest teal  → security / TEE / verified (+ pale-cyan pills)
+   Light-first; a tasteful dark inversion follows.
    ──────────────────────────────────────────────────────────────────── */
 :root {
-  --radius: 0.7rem;
+  --radius: 0.5rem; /* 8px */
 
-  --background: oklch(0.99 0.003 250);
-  --foreground: oklch(0.21 0.02 256);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.02 256);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.02 256);
+  --background: #f6f6f8; /* paper white */
+  --foreground: #011821; /* deep ink */
+  --card: #ffffff;
+  --card-foreground: #011821;
+  --popover: #ffffff;
+  --popover-foreground: #011821;
 
-  --primary: oklch(0.77 0.15 73);
-  --primary-foreground: oklch(0.24 0.04 68);
-  --secondary: oklch(0.965 0.006 250);
-  --secondary-foreground: oklch(0.27 0.02 256);
-  --muted: oklch(0.965 0.006 250);
-  --muted-foreground: oklch(0.52 0.02 256);
-  --accent: oklch(0.95 0.012 250);
-  --accent-foreground: oklch(0.27 0.02 256);
-  --destructive: oklch(0.58 0.22 27);
+  --primary: #111a4a; /* deep indigo — primary action */
+  --primary-foreground: #ffffff;
+  --secondary: #ffffff;
+  --secondary-foreground: #12161e;
+  --muted: #eef0f3;
+  --muted-foreground: #7c7f88; /* slate */
+  --accent: #eef0f3;
+  --accent-foreground: #12161e;
+  --destructive: #cf3b3b;
 
-  --secure: oklch(0.6 0.12 168);
-  --secure-foreground: oklch(0.99 0.01 180);
-  --secure-muted: oklch(0.95 0.03 168);
+  --secure: #167e6c; /* forest teal */
+  --secure-foreground: #ffffff;
+  --secure-muted: #c1e8ef; /* pale cyan */
 
-  --border: oklch(0.91 0.008 250);
-  --input: oklch(0.91 0.008 250);
-  --ring: oklch(0.77 0.15 73);
+  --value: #ec652b; /* ember orange — rationed */
+  --value-foreground: #ffffff;
 
-  --chart-1: oklch(0.77 0.15 73);
-  --chart-2: oklch(0.6 0.12 168);
-  --chart-3: oklch(0.6 0.13 250);
-  --chart-4: oklch(0.58 0.18 300);
-  --chart-5: oklch(0.62 0.2 18);
+  --border: #e3e4e8; /* mist */
+  --input: #e3e4e8;
+  --ring: #111a4a;
 
-  --sidebar: oklch(0.985 0.003 250);
-  --sidebar-foreground: oklch(0.21 0.02 256);
-  --sidebar-primary: oklch(0.77 0.15 73);
-  --sidebar-primary-foreground: oklch(0.24 0.04 68);
-  --sidebar-accent: oklch(0.95 0.012 250);
-  --sidebar-accent-foreground: oklch(0.27 0.02 256);
-  --sidebar-border: oklch(0.91 0.008 250);
-  --sidebar-ring: oklch(0.77 0.15 73);
+  --chart-1: #111a4a;
+  --chart-2: #167e6c;
+  --chart-3: #4575cd;
+  --chart-4: #9f7aee;
+  --chart-5: #ec652b;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #011821;
+  --sidebar-primary: #111a4a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef0f3;
+  --sidebar-accent-foreground: #12161e;
+  --sidebar-border: #e3e4e8;
+  --sidebar-ring: #111a4a;
 }
 
 .dark {
-  --background: oklch(0.17 0.018 256);
-  --foreground: oklch(0.97 0.005 250);
-  --card: oklch(0.21 0.021 256);
-  --card-foreground: oklch(0.97 0.005 250);
-  --popover: oklch(0.215 0.021 256);
-  --popover-foreground: oklch(0.97 0.005 250);
+  --background: #021019; /* deep-ink canvas */
+  --foreground: #eef1f4;
+  --card: #07212d;
+  --card-foreground: #eef1f4;
+  --popover: #07212d;
+  --popover-foreground: #eef1f4;
 
-  --primary: oklch(0.81 0.15 77);
-  --primary-foreground: oklch(0.22 0.04 66);
-  --secondary: oklch(0.26 0.02 256);
-  --secondary-foreground: oklch(0.97 0.005 250);
-  --muted: oklch(0.26 0.02 256);
-  --muted-foreground: oklch(0.71 0.015 256);
-  --accent: oklch(0.28 0.022 256);
-  --accent-foreground: oklch(0.97 0.005 250);
-  --destructive: oklch(0.64 0.2 25);
+  --primary: #aeb9ff; /* lifted indigo for contrast on dark */
+  --primary-foreground: #0a1230;
+  --secondary: #0c2a37;
+  --secondary-foreground: #eef1f4;
+  --muted: #0c2733;
+  --muted-foreground: #9fb0b8;
+  --accent: #0e2c3a;
+  --accent-foreground: #eef1f4;
+  --destructive: #f06a6a;
 
-  --secure: oklch(0.72 0.14 167);
-  --secure-foreground: oklch(0.16 0.03 170);
-  --secure-muted: oklch(0.28 0.05 168);
+  --secure: #44b48b; /* mint-teal on dark */
+  --secure-foreground: #04140f;
+  --secure-muted: #0e3a3a;
 
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 13%);
-  --ring: oklch(0.81 0.15 77);
+  --value: #ff7a45;
+  --value-foreground: #1a0a04;
 
-  --chart-1: oklch(0.81 0.15 77);
-  --chart-2: oklch(0.72 0.14 167);
-  --chart-3: oklch(0.66 0.13 252);
-  --chart-4: oklch(0.65 0.18 300);
-  --chart-5: oklch(0.68 0.19 20);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: #aeb9ff;
 
-  --sidebar: oklch(0.19 0.02 256);
-  --sidebar-foreground: oklch(0.97 0.005 250);
-  --sidebar-primary: oklch(0.81 0.15 77);
-  --sidebar-primary-foreground: oklch(0.22 0.04 66);
-  --sidebar-accent: oklch(0.28 0.022 256);
-  --sidebar-accent-foreground: oklch(0.97 0.005 250);
-  --sidebar-border: oklch(1 0 0 / 9%);
-  --sidebar-ring: oklch(0.81 0.15 77);
+  --chart-1: #aeb9ff;
+  --chart-2: #44b48b;
+  --chart-3: #7ea7e9;
+  --chart-4: #9f7aee;
+  --chart-5: #ff7a45;
+
+  --sidebar: #07212d;
+  --sidebar-foreground: #eef1f4;
+  --sidebar-primary: #aeb9ff;
+  --sidebar-primary-foreground: #0a1230;
+  --sidebar-accent: #0e2c3a;
+  --sidebar-accent-foreground: #eef1f4;
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: #aeb9ff;
 }
 
 @layer base {
@@ -149,29 +194,78 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-feature-settings: "cv01", "cv03", "cv04", "ss03";
   }
   html {
     @apply font-sans antialiased;
     scroll-behavior: smooth;
+    /* Swiss neo-grotesque: tighten tracking, light by default */
+    letter-spacing: -0.011em;
   }
   /* tabular figures for all financial / numeric data */
   .tnum {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
   }
+  /* Display headlines: weight 300, tight tracking — the Column signature */
+  .font-display {
+    font-weight: 300;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+  }
 }
 
 @layer components {
-  /* faint grid texture for hero / section backgrounds */
-  .bg-grid {
-    background-image:
-      linear-gradient(to right, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px),
-      linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px);
-    background-size: 56px 56px;
-  }
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Section-label pill: pale-cyan bg, forest-teal text, mono uppercase */
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 9999px;
+    background: var(--color-pale-cyan);
+    color: var(--color-forest-teal);
+    padding: 0.25rem 0.625rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .dark .section-label {
+    background: color-mix(in oklch, var(--color-forest-teal) 22%, transparent);
+    color: var(--color-mint);
+  }
+
+  /* Halftone dot-field: the brand spectrum gradient seen through a dot mask.
+     The page's signature motif — let it breathe behind ample white space. */
+  .dotfield {
+    background-image: linear-gradient(
+      125deg,
+      #d65620 0%,
+      #9f7aee 14%,
+      #4575cd 32%,
+      #71d2f0 50%,
+      #44b48b 68%,
+      #f4df69 85%
+    );
+    -webkit-mask-image: radial-gradient(circle at center, #000 1.1px, transparent 1.5px);
+    mask-image: radial-gradient(circle at center, #000 1.1px, transparent 1.5px);
+    -webkit-mask-size: 13px 13px;
+    mask-size: 13px 13px;
+    -webkit-mask-repeat: repeat;
+    mask-repeat: repeat;
+  }
+  /* Monochrome indigo dot grid — quieter texture for section backdrops */
+  .dotgrid {
+    background-image: radial-gradient(
+      color-mix(in oklch, var(--foreground) 14%, transparent) 1px,
+      transparent 1.4px
+    );
+    background-size: 13px 13px;
   }
 }
 

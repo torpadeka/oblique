@@ -1,0 +1,22 @@
+# Force a clean linux install inside the image — never copy host (Windows/mac)
+# node_modules or native binaries.
+node_modules
+.next
+.git
+.gitignore
+
+# Local env / secrets — pass via compose env_file or environment instead.
+.env
+.env.local
+.env.*.local
+
+# Big / irrelevant
+*.log
+.DS_Store
+.qvac
+example_documents
+Dockerfile
+docker-compose.yml
+.dockerignore
+README.md
+DESIGN.md

@@ -31,12 +31,41 @@ export function computeRatios(input: CreditInput) {
   };
 }
 
+/**
+ * DSCR computed from the financials, per the standard lending definition
+ * (Corporate Finance Institute): (EBITDA − cash taxes) / total debt service
+ * (interest + principal due in the period). Independent of the scenario DSCRs the
+ * document supplies, so an optimistic submitted DSCR can't carry the score alone.
+ * Source: https://corporatefinanceinstitute.com/resources/commercial-lending/debt-service-coverage-ratio/
+ */
+export function computeDscr(input: CreditInput): number {
+  // Cash taxes ≈ pre-tax income − net income (floored at 0).
+  const pretax = input.operatingProfit - input.interestExpense;
+  const cashTaxes = Math.max(0, pretax - input.netIncome);
+  const noi = input.ebitda - cashTaxes;
+  // Total debt service = interest + principal DUE IN THE PERIOD. Revolving /
+  // bullet / interest-only / demand facilities don't amortize principal annually
+  // (it's interest-only until maturity); amortizing facilities spread the
+  // principal over the tenor. Treating a revolving line as fully amortized would
+  // wildly overstate debt service and crush the DSCR.
+  const scheme = (input.repaymentScheme || "").toLowerCase();
+  const amortizes = !/revolv|bullet|interest[-\s]?only|demand|balloon/.test(scheme);
+  const loanYears = Math.max(0.5, (input.tenorMonths || 12) / 12);
+  const annualPrincipal = amortizes && input.plafonApproved > 0 ? input.plafonApproved / loanYears : 0;
+  const debtService = input.interestExpense + annualPrincipal;
+  if (!(debtService > 0)) return 0;
+  const dscr = noi / debtService;
+  return Number.isFinite(dscr) ? Math.max(0, dscr) : 0;
+}
+
 export function deidentify(input: CreditInput): DeidentifiedFeatures {
   const r = computeRatios(input);
+  const dscrComputed = computeDscr(input);
 
   const result = scoreCredit({
     dscrModerate: input.dscrModerate,
     dscrPessimistic: input.dscrPessimistic,
+    dscrComputed,
     debtToEquity: r.debtToEquity,
     debtToAsset: r.debtToAsset,
     currentRatio: r.currentRatio,
@@ -71,6 +100,7 @@ export function deidentify(input: CreditInput): DeidentifiedFeatures {
     dscrModerate: round(input.dscrModerate),
     dscrOptimistic: round(input.dscrOptimistic),
     dscrPessimistic: round(input.dscrPessimistic),
+    dscrComputed: round(dscrComputed),
     currentRatio: round(r.currentRatio),
     quickRatio: round(r.quickRatio),
     cashRatio: round(r.cashRatio),
@@ -94,7 +124,41 @@ export function deidentify(input: CreditInput): DeidentifiedFeatures {
     pillars: result.pillars,
     reasonCodes: result.reasonCodes,
     flags: result.flags,
+
+    // flexible context — scrubbed of identifiers before it may cross to the LLM
+    extrasContext: sanitizeExtras(input.extras, input),
   };
+}
+
+/** Free-text patterns that likely encode an identifier — dropped from extras. */
+const EXTRA_PII_RE = /([\w.+-]+@[\w-]+\.[\w.-]+)|(\+?\d[\d ().-]{6,}\d)|(\b\d{7,}\b)/;
+
+/**
+ * Scrub the raw `extras` bag so only NON-identifying context crosses the firewall.
+ * Drops any entry whose label/value contains one of the application's known
+ * identifiers (company/debtor name, tax id, NIB, address, established date) or
+ * looks like an email, phone number, or long id number. The score never sees
+ * extras; this only governs what qualitative context the external LLM may read.
+ */
+function sanitizeExtras(
+  extras: Record<string, string> | undefined,
+  input: CreditInput,
+): Record<string, string> | undefined {
+  if (!extras) return undefined;
+  const identifiers = PII_KEYS.map((k) => String(input[k] ?? "").toLowerCase().trim()).filter(
+    (v) => v.length >= 4,
+  );
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(extras)) {
+    const key = String(k).trim();
+    const val = String(v ?? "").trim();
+    if (!key || !val) continue;
+    const hay = `${key} ${val}`.toLowerCase();
+    if (identifiers.some((id) => hay.includes(id))) continue; // contains a known identifier value
+    if (EXTRA_PII_RE.test(key) || EXTRA_PII_RE.test(val)) continue; // looks like email/phone/id
+    out[key] = val;
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /**

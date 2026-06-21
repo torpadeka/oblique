@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { extractPdfText } from "@/lib/qvac/extract";
 import { qvacExtract, qvacOcr, qvacConfigured } from "@/lib/qvac/client";
 import { parseCreditInput, FIELD_LABELS } from "@/lib/schema";
-import type { CreditInput, QvacParseResult, QvacReceipt } from "@/lib/types";
+import type { CreditInput, QvacParseResult, QvacReceipt, T3Step } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,22 +50,49 @@ export async function POST(req: Request) {
   try {
     // 1. Local text extraction (raw bytes never leave the device). For scanned
     //    PDFs (no text layer) fall back to on-device OCR via the QVAC sidecar.
+    //    Every OCR decision is recorded so it's never silently invisible.
+    const ocrNotes: string[] = [];
+    let ocrUsed = 0;
+    let ocrFailed = 0;
+    let ocrSkipped = 0;
     const docs = await Promise.all(
       files.map(async (f) => {
         const doc = await extractPdfText(f.name, f.data);
-        if (doc.chars >= MIN_TEXT_CHARS || !qvacConfigured) return doc;
+        if (doc.chars >= MIN_TEXT_CHARS) return doc; // has a usable text layer
+        // No text layer → scanned. Try OCR.
+        if (!qvacConfigured) {
+          ocrSkipped++;
+          ocrNotes.push(`${f.name}: no text layer, but QVAC_BASE_URL unset → OCR skipped`);
+          return doc;
+        }
         try {
-          const { text } = await qvacOcr(f.b64);
+          const { text, pages } = await qvacOcr(f.b64);
           const clean = text.trim();
           if (clean.length >= MIN_TEXT_CHARS) {
+            ocrUsed++;
+            ocrNotes.push(`${f.name}: OCR'd ${pages} page(s) → ${clean.length} chars`);
             return { ...doc, text: clean, chars: clean.length, ocr: true };
           }
-        } catch {
-          // OCR unavailable/failed — leave the doc empty; heuristic handles it.
+          ocrFailed++;
+          ocrNotes.push(`${f.name}: OCR returned no usable text`);
+        } catch (e) {
+          ocrFailed++;
+          ocrNotes.push(`${f.name}: OCR failed — ${e instanceof Error ? e.message.slice(0, 100) : "error"}`);
         }
         return doc;
       }),
     );
+
+    // Surface a dedicated OCR step whenever any file lacked a text layer.
+    const ocrAttempted = ocrUsed + ocrFailed + ocrSkipped;
+    const ocrStep: T3Step | null = ocrAttempted
+      ? {
+          id: "ocr",
+          label: "OCR scanned pages (on-device)",
+          status: ocrUsed ? "ok" : ocrSkipped && !ocrFailed ? "skipped" : "error",
+          detail: ocrNotes.join(" · "),
+        }
+      : null;
 
     // 2. QVAC LLM (on-device) or deterministic heuristic → loose JSON.
     const extraction = await qvacExtract(docs);
@@ -82,8 +109,10 @@ export async function POST(req: Request) {
       totalFields: TOTAL_FIELDS,
       missing: report.missing.map((k) => FIELD_LABELS[k]),
       reviewCritical: report.reviewCritical.map((k) => FIELD_LABELS[k]),
+      extras: report.data.extras,
       steps: [
         ...extraction.steps,
+        ...(ocrStep ? [ocrStep] : []),
         {
           id: "validate",
           label: "Validate with Zod schema",

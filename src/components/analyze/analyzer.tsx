@@ -114,7 +114,7 @@ export function Analyzer() {
       <div className="mx-auto max-w-2xl space-y-6 py-4">
         <SecureProgress receipt={result?.receipt ?? null} revealed={revealed} />
         {analyzing && (
-          <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-card)]">
             <Bot className="size-5 text-primary" />
             <div className="flex-1">
               <p className="text-sm font-medium">Agent analyst reasoning</p>

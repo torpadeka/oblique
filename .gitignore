@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI assistant / design-spec files — kept locally, never tracked
+AGENTS.md
+CLAUDE.md
+DESIGN.md

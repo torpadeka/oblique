@@ -19,6 +19,10 @@
 import { z } from "zod";
 import type { CreditInput } from "./types";
 
+/** The fixed, labelled, scored fields — everything in CreditInput except the
+ * free-form `extras` bag. */
+export type CreditField = Exclude<keyof CreditInput, "extras">;
+
 /** Strip currency symbols, thousands separators and stray text from a numeric value. */
 function toNumber(v: unknown): number | undefined {
   if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
@@ -45,6 +49,23 @@ function toBoolean(v: unknown): boolean {
 const num = z.preprocess((v) => toNumber(v) ?? 0, z.number());
 /** A coercing string field that defaults to "". */
 const str = z.preprocess((v) => (v == null ? "" : String(v).trim()), z.string());
+
+const MAX_EXTRAS = 30;
+const MAX_EXTRA_LEN = 300;
+/** Coerce a free-form `extras` bag into a clean, bounded Record<string,string>. */
+function coerceExtras(v: unknown): Record<string, string> | undefined {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (Object.keys(out).length >= MAX_EXTRAS) break;
+    const key = String(k).trim();
+    if (!key) continue;
+    const value = val == null ? "" : typeof val === "object" ? JSON.stringify(val) : String(val);
+    const clean = value.trim().slice(0, MAX_EXTRA_LEN);
+    if (clean) out[key] = clean;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 
 export const CreditInputSchema = z.object({
   // identity (PII)
@@ -99,10 +120,15 @@ export const CreditInputSchema = z.object({
     z.number().int().min(1).max(5),
   ),
   hasNpl: z.preprocess(toBoolean, z.boolean()),
+
+  // Flexible capture: facts outside the fixed 36 fields. Carried through the
+  // pipeline (sealed, shown for review) but NEVER fed to the deterministic score.
+  extras: z.preprocess(coerceExtras, z.record(z.string(), z.string()).optional()),
 });
 
-/** Human labels per field — single source for the QVAC prompt + the review UI. */
-export const FIELD_LABELS: Record<keyof CreditInput, string> = {
+/** Human labels per field — single source for the QVAC prompt + the review UI.
+ * Excludes `extras` (the flexible bag isn't a fixed, labelled, scored field). */
+export const FIELD_LABELS: Record<CreditField, string> = {
   companyName: "Company name",
   debtorName: "Debtor name",
   npwp: "Tax ID",
@@ -143,7 +169,7 @@ export const FIELD_LABELS: Record<keyof CreditInput, string> = {
 
 /** Fields a human MUST eyeball after an automated extraction (identity + the
  * load-bearing financials the score hinges on). Drives the review banner. */
-const REVIEW_CRITICAL: (keyof CreditInput)[] = [
+const REVIEW_CRITICAL: CreditField[] = [
   "companyName",
   "sector",
   "plafonRequested",
@@ -160,9 +186,9 @@ const REVIEW_CRITICAL: (keyof CreditInput)[] = [
 export interface ParseReport {
   data: CreditInput;
   /** Keys absent / blank / zero in the raw extraction — surfaced for review. */
-  missing: (keyof CreditInput)[];
+  missing: CreditField[];
   /** Critical keys among `missing` the user should double-check before scoring. */
-  reviewCritical: (keyof CreditInput)[];
+  reviewCritical: CreditField[];
   /** Hard validation errors (rare — the schema is lenient by design). */
   issues: string[];
 }
@@ -192,7 +218,7 @@ export function parseCreditInput(raw: unknown): ParseReport {
     ? []
     : result.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`);
 
-  const missing = (Object.keys(FIELD_LABELS) as (keyof CreditInput)[]).filter(
+  const missing = (Object.keys(FIELD_LABELS) as CreditField[]).filter(
     (k) => k !== "hasNpl" && isBlank(obj, k),
   );
   const reviewCritical = missing.filter((k) => REVIEW_CRITICAL.includes(k));

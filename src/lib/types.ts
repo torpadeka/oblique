@@ -61,6 +61,15 @@ export interface CreditInput {
   // ── Credit bureau (SLIK) ──
   slikQuality: number; // 1 (current) .. 5 (loss)
   hasNpl: boolean;
+
+  // ── Flexible capture (raw side) ──
+  /**
+   * Facts the document carried that don't map to a fixed field (guarantors,
+   * covenants, project milestones, ESG notes…). Captured so nothing is lost, but
+   * they NEVER feed the deterministic score, and only a de-identified subset
+   * (`DeidentifiedFeatures.extrasContext`) is allowed to cross to the cloud LLM.
+   */
+  extras?: Record<string, string>;
 }
 
 /** One scored pillar of the model. */
@@ -101,6 +110,7 @@ export interface DeidentifiedFeatures {
   dscrModerate: number;
   dscrOptimistic: number;
   dscrPessimistic: number;
+  dscrComputed: number; // DSCR from the financials (CFI), not document-supplied
   currentRatio: number;
   quickRatio: number;
   cashRatio: number;
@@ -124,6 +134,14 @@ export interface DeidentifiedFeatures {
   pillars: ScorePillar[];
   reasonCodes: ReasonCode[];
   flags: string[];
+
+  /**
+   * De-identified borrower-supplied context: the `CreditInput.extras` that
+   * survived the firewall scrub (entries containing known identifiers or
+   * email/phone/id patterns are dropped). Extra qualitative context for the
+   * analyst LLM — never feeds the score.
+   */
+  extrasContext?: Record<string, string>;
 }
 
 /** Result of the deterministic scoring engine. */
@@ -199,6 +217,8 @@ export interface QvacReceipt {
   missing: string[];
   /** Critical fields among `missing` the score hinges on. */
   reviewCritical: string[];
+  /** Facts captured outside the fixed schema (raw side — shown for review). */
+  extras?: Record<string, string>;
   steps: T3Step[];
   note: string;
 }

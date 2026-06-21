@@ -15,8 +15,8 @@ const NAV = [
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/75 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-4 px-5 sm:px-8">
         <Link href="/" className="cursor-pointer" aria-label="Oblique home">
           <Logo />
         </Link>
@@ -28,7 +28,7 @@ export function SiteHeader() {
               href={item.href}
               className={cn(
                 buttonVariants({ variant: "ghost", size: "sm" }),
-                "cursor-pointer text-muted-foreground hover:text-foreground",
+                "cursor-pointer font-normal text-muted-foreground hover:text-foreground",
               )}
             >
               {item.label}

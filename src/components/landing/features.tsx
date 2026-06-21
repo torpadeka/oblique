@@ -1,5 +1,4 @@
 import { Fingerprint, ShieldCheck, EyeOff, Scale, UserCheck, ScrollText } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 const FEATURES = [
   {
@@ -36,31 +35,31 @@ const FEATURES = [
 
 export function Features() {
   return (
-    <section id="features" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+    <section id="features" className="mx-auto max-w-[1200px] px-5 py-20 sm:px-8 sm:py-24">
       <div className="max-w-2xl">
-        <Badge variant="secondary" className="rounded-full">Why Oblique</Badge>
-        <h2 className="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+        <span className="section-label">Why Oblique</span>
+        <h2 className="font-display mt-4 text-balance text-3xl text-foreground sm:text-4xl">
           The Agent Auth SDK, wired end to end
         </h2>
-        <p className="mt-4 text-muted-foreground">
+        <p className="mt-4 leading-relaxed text-muted-foreground">
           Identity, delegation, confidential compute, selective disclosure, and an audit
           trail — each Terminal 3 primitive carries real weight in the flow.
         </p>
       </div>
 
-      <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((f) => {
           const Icon = f.icon;
           return (
             <div
               key={f.title}
-              className="group rounded-2xl border border-border/70 bg-card p-6 transition-colors hover:border-primary/40"
+              className="group rounded-lg border border-border bg-card p-6 shadow-[var(--shadow-card)] transition-colors hover:border-primary/40"
             >
-              <span className="inline-flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary/15 to-secure/15 text-foreground">
-                <Icon className="size-5" />
+              <span className="inline-flex size-9 items-center justify-center rounded-lg bg-muted text-primary">
+                <Icon className="size-4" />
               </span>
-              <h3 className="mt-4 font-semibold">{f.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{f.body}</p>
+              <h3 className="mt-4 font-medium tracking-tight text-foreground">{f.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
             </div>
           );
         })}
