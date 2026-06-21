@@ -1,14 +1,15 @@
 "use client";
 
-import { Sparkles, RotateCcw, Lock, ArrowRight } from "lucide-react";
+import { Sparkles, RotateCcw, Lock, ArrowRight, FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { QvacReceiptCard } from "@/components/analyze/qvac-receipt";
 import { formatMoneyCompact } from "@/lib/format";
-import type { CreditInput } from "@/lib/types";
+import type { CreditInput, QvacReceipt } from "@/lib/types";
 
 type FieldType = "text" | "number" | "money" | "date" | "textarea" | "select" | "checkbox";
 
@@ -116,10 +117,12 @@ interface Props {
   onSubmit: () => void;
   onLoadSample: () => void;
   onReset: () => void;
+  qvacReceipt?: QvacReceipt | null;
   busy?: boolean;
 }
 
-export function CreditForm({ value, onChange, onSubmit, onLoadSample, onReset, busy }: Props) {
+export function CreditForm({ value, onChange, onSubmit, onLoadSample, onReset, qvacReceipt, busy }: Props) {
+  const fromDocs = Boolean(qvacReceipt);
   return (
     <form
       onSubmit={(e) => {
@@ -130,22 +133,36 @@ export function CreditForm({ value, onChange, onSubmit, onLoadSample, onReset, b
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">New credit assessment</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {fromDocs ? "Review the parsed application" : "New credit assessment"}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Enter the application, or load the sample memo.
+            {fromDocs
+              ? "QVAC drafted this from your documents — check the figures, then score."
+              : "Enter the application, or load the sample memo."}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={onLoadSample} className="cursor-pointer">
-            <Sparkles />
-            Load sample
-          </Button>
+          {!fromDocs && (
+            <Button type="button" variant="outline" size="sm" onClick={onLoadSample} className="cursor-pointer">
+              <Sparkles />
+              Load sample
+            </Button>
+          )}
           <Button type="button" variant="ghost" size="sm" onClick={onReset} className="cursor-pointer">
-            <RotateCcw />
-            Reset
+            {fromDocs ? <FileUp /> : <RotateCcw />}
+            {fromDocs ? "Re-upload" : "Reset"}
           </Button>
         </div>
       </div>
+
+      {qvacReceipt && (
+        <Card className="border-primary/30 bg-primary/[0.03]">
+          <CardContent className="pt-6">
+            <QvacReceiptCard receipt={qvacReceipt} />
+          </CardContent>
+        </Card>
+      )}
 
       {SECTIONS.map((section) => (
         <Card key={section.title}>

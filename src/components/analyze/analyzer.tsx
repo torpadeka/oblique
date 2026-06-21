@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Bot } from "lucide-react";
+import { DocumentUpload } from "@/components/analyze/document-upload";
 import { CreditForm } from "@/components/analyze/credit-form";
 import { SecureProgress } from "@/components/analyze/secure-progress";
 import { ResultView } from "@/components/analyze/result-view";
 import { SAMPLE_CREDIT, EMPTY_CREDIT } from "@/lib/sample-data";
-import type { CreditInput, CreditVerdict, SecureResult } from "@/lib/types";
+import type { CreditInput, CreditVerdict, QvacReceipt, QvacParseResult, SecureResult } from "@/lib/types";
 
-type Phase = "input" | "processing" | "result";
+type Phase = "upload" | "input" | "processing" | "result";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -25,8 +26,9 @@ async function postJSON<T>(url: string, body: unknown): Promise<T> {
 }
 
 export function Analyzer() {
-  const [input, setInput] = useState<CreditInput>(SAMPLE_CREDIT);
-  const [phase, setPhase] = useState<Phase>("input");
+  const [input, setInput] = useState<CreditInput>(EMPTY_CREDIT);
+  const [phase, setPhase] = useState<Phase>("upload");
+  const [qvacReceipt, setQvacReceipt] = useState<QvacReceipt | null>(null);
   const [result, setResult] = useState<SecureResult | null>(null);
   const [verdict, setVerdict] = useState<CreditVerdict | null>(null);
   const [revealed, setRevealed] = useState(0);
@@ -69,11 +71,28 @@ export function Analyzer() {
     }
   }
 
-  function reset(empty = false) {
-    setInput(empty ? EMPTY_CREDIT : SAMPLE_CREDIT);
+  function startOver() {
+    setInput(EMPTY_CREDIT);
+    setQvacReceipt(null);
     setResult(null);
     setVerdict(null);
+    setPhase("upload");
+  }
+
+  function onParsed(parsed: QvacParseResult) {
+    setInput(parsed.input);
+    setQvacReceipt(parsed.receipt);
     setPhase("input");
+  }
+
+  function onManual() {
+    setInput(EMPTY_CREDIT);
+    setQvacReceipt(null);
+    setPhase("input");
+  }
+
+  if (phase === "upload") {
+    return <DocumentUpload onParsed={onParsed} onManual={onManual} />;
   }
 
   if (phase === "input") {
@@ -83,7 +102,8 @@ export function Analyzer() {
         onChange={patch}
         onSubmit={run}
         onLoadSample={() => setInput(SAMPLE_CREDIT)}
-        onReset={() => reset(true)}
+        onReset={startOver}
+        qvacReceipt={qvacReceipt}
         busy={false}
       />
     );
@@ -110,6 +130,6 @@ export function Analyzer() {
   }
 
   return result ? (
-    <ResultView input={input} result={result} verdict={verdict} onReset={() => reset(false)} />
+    <ResultView input={input} result={result} verdict={verdict} onReset={startOver} />
   ) : null;
 }

@@ -8,6 +8,18 @@
  * and only ever sees the de-identified output of this engine — never raw PII.
  *
  * Pure functions, no I/O — portable to a Rust→WASM contract later.
+ *
+ * Calibration sources (real, public data — not invented):
+ *   • PD by grade: S&P Global Ratings, "Annual Global Corporate Default Study
+ *     And Rating Transition Study" — average one-year default rates by rating,
+ *     1981–2009 (through-the-cycle). Used as the PD anchors in `pdFor`.
+ *   • Interest-coverage → rating: Damodaran (NYU Stern), "Ratings, Interest
+ *     Coverage Ratios and Default Spreads" (large non-financial firms),
+ *     pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ratings.html — used
+ *     for the synthetic-rating cross-check.
+ * The 7-pillar weights and ratio breakpoints remain a JUDGMENTAL expert
+ * scorecard (standard ratios, hand-chosen thresholds), not statistically
+ * calibrated on a default dataset — see README.
  */
 
 import type { ReasonCode, RiskBand, ScorePillar, ScoreResult } from "./types";
@@ -65,21 +77,69 @@ function bandFor(score: number): RiskBand {
   return "CCC";
 }
 
-/** Through-the-cycle PD anchors per band, interpolated by intra-band position. */
-function pdFor(score: number, band: RiskBand): number {
-  const anchor: Record<RiskBand, number> = {
-    AAA: 0.4,
-    AA: 0.9,
-    A: 1.8,
-    BBB: 3.5,
-    BB: 7,
-    B: 13,
-    CCC: 24,
-  };
-  const base = anchor[band];
-  // nudge ±15% by how high within the 0..100 scale the score sits
-  const adj = base * (1 + (70 - score) / 400);
-  return Math.round(Math.max(0.2, adj) * 10) / 10;
+/**
+ * Empirical probability of default (1-year, %). NOT hand-tuned — anchored to
+ * S&P Global Ratings' average one-year global corporate default rates by rating,
+ * 1981–2009 (through-the-cycle: the window spans a full credit cycle including
+ * the 2008–09 crisis). Source: S&P, "Annual Global Corporate Default Study And
+ * Rating Transition Study" — Year-1 column of the average cumulative
+ * default-rate-by-rating table.
+ */
+const SP_DEFAULT_1Y: Record<RiskBand, number> = {
+  AAA: 0.01, // S&P observed 0.00% (no AAA defaults in-sample); floored just below AA so a true-zero PD isn't asserted and grade order holds
+  AA: 0.02,
+  A: 0.08,
+  BBB: 0.26,
+  BB: 0.97,
+  B: 4.93,
+  CCC: 27.98,
+};
+
+// Representative score (band midpoint, per the bandFor cutoffs) → empirical 1Y PD.
+const PD_ANCHORS: [number, number][] = [
+  [30, SP_DEFAULT_1Y.CCC],
+  [47, SP_DEFAULT_1Y.B],
+  [58, SP_DEFAULT_1Y.BB],
+  [67, SP_DEFAULT_1Y.BBB],
+  [76, SP_DEFAULT_1Y.A],
+  [84, SP_DEFAULT_1Y.AA],
+  [94, SP_DEFAULT_1Y.AAA],
+];
+
+/** Log-linear interpolation between the empirical per-grade S&P default rates. */
+function pdFor(score: number): number {
+  const pts = PD_ANCHORS;
+  const r2 = (pd: number) => Math.round(pd * 100) / 100;
+  if (score <= pts[0][0]) return r2(pts[0][1]);
+  if (score >= pts[pts.length - 1][0]) return r2(pts[pts.length - 1][1]);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    if (score >= x0 && score <= x1) {
+      const t = (score - x0) / (x1 - x0);
+      // default rates are ~log-linear across grades, so interpolate in log space
+      return r2(Math.exp(Math.log(y0) + t * (Math.log(y1) - Math.log(y0))));
+    }
+  }
+  return r2(pts[pts.length - 1][1]);
+}
+
+/**
+ * Synthetic rating implied purely by interest coverage (EBITDA / interest
+ * expense), per Damodaran (NYU Stern), "Ratings, Interest Coverage Ratios and
+ * Default Spreads" (large non-financial firms). Used only as an INDEPENDENT
+ * cross-check reason code — it does NOT feed the composite score.
+ * Source: pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ratings.html
+ */
+function syntheticRatingFromCoverage(ic: number): RiskBand {
+  if (!Number.isFinite(ic)) return "CCC";
+  if (ic >= 8.5) return "AAA";
+  if (ic >= 6.5) return "AA";
+  if (ic >= 3) return "A"; // A+ ≥5.5, A ≥4.25, A- ≥3
+  if (ic >= 2.5) return "BBB";
+  if (ic >= 2) return "BB"; // BB+ ≥2.25, BB ≥2
+  if (ic >= 1.25) return "B"; // B+ ≥1.75, B ≥1.5, B- ≥1.25
+  return "CCC";
 }
 
 export function scoreCredit(x: ScoringInputs): ScoreResult {
@@ -212,7 +272,7 @@ export function scoreCredit(x: ScoringInputs): ScoreResult {
   const composite = pillars.reduce((sum, p) => sum + p.weight * p.score, 0);
   const score = Math.round(clamp(composite));
   const band = bandFor(score);
-  const probabilityOfDefaultPct = pdFor(score, band);
+  const probabilityOfDefaultPct = pdFor(score);
 
   // ── Reason codes ──
   const reasonCodes: ReasonCode[] = [];
@@ -234,6 +294,14 @@ export function scoreCredit(x: ScoringInputs): ScoreResult {
 
   if (x.slikQuality === 1 && !x.hasNpl) add("positive", "CLEAN_BUREAU", "Clean credit bureau record — all facilities current.");
   if (x.hasNpl) add("negative", "ACTIVE_NPL", "Active non-performing loan on bureau record.");
+
+  // Independent cross-check: a synthetic rating implied purely by interest
+  // coverage (Damodaran mapping), surfaced alongside the composite grade.
+  if (Number.isFinite(x.interestCoverage) && x.interestCoverage > 0) {
+    const synth = syntheticRatingFromCoverage(x.interestCoverage);
+    const kind: ReasonCode["kind"] = x.interestCoverage >= 3 ? "positive" : x.interestCoverage >= 1.5 ? "watch" : "negative";
+    add(kind, "IC_SYNTH_RATING", `Interest coverage ${x.interestCoverage.toFixed(2)}× maps to a "${synth}" synthetic rating (Damodaran interest-coverage→rating table).`);
+  }
 
   if (isCyclical) add("watch", "CYCLICAL", "Operates in a cyclical, project-based sector — revenue lumpy across the cycle.");
   if (x.plafonApproved < x.plafonRequested) add("watch", "PLAFON_CUT", `Approved facility reduced from request (${Math.round((1 - x.plafonApproved / x.plafonRequested) * 100)}% haircut) — risk already moderated by the lender.`);

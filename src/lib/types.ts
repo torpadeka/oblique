@@ -176,6 +176,39 @@ export interface VerifiableCredential {
   };
 }
 
+/**
+ * QVAC document-ingestion boundary.
+ *
+ * Runs on the RAW side of the privacy firewall (before the Terminal 3 seal):
+ * uploaded PDFs are read and parsed into structured JSON locally — by an on-device
+ * QVAC LLM when configured, else a deterministic local heuristic parser — so the
+ * raw documents (PII) never cross to a cloud service. The receipt records which
+ * engine ran and how complete the extraction was.
+ */
+export interface QvacReceipt {
+  /** Which local engine produced the JSON. */
+  engine: "qvac-llm" | "heuristic";
+  /** "live" when the QVAC LLM ran; "fallback" when it degraded to the heuristic. */
+  mode: "live" | "fallback";
+  model: string | null;
+  files: { name: string; bytes: number; chars: number }[];
+  /** Count of fields the extractor populated vs the total schema. */
+  extractedFields: number;
+  totalFields: number;
+  /** Field keys left blank/zero — the user should review these. */
+  missing: string[];
+  /** Critical fields among `missing` the score hinges on. */
+  reviewCritical: string[];
+  steps: T3Step[];
+  note: string;
+}
+
+/** Server response for the QVAC parse call: the coerced input + the receipt. */
+export interface QvacParseResult {
+  input: CreditInput;
+  receipt: QvacReceipt;
+}
+
 /** Where each step physically ran + what Terminal 3 attested. */
 export interface T3Receipt {
   environment: string;
