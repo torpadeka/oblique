@@ -24,6 +24,12 @@ import type { ExtractedDoc } from "./extract";
 const QVAC_BASE_URL = process.env.QVAC_BASE_URL?.trim().replace(/\/$/, "") ?? "";
 const QVAC_MODEL = process.env.QVAC_MODEL?.trim() || "qvac-local";
 const QVAC_API_KEY = process.env.QVAC_API_KEY?.trim() || "";
+// Per-request budget for the on-device LLM. A 4B model on CPU can take 1–3 min
+// to extract all 36 fields — far longer than a GPU run — so default generously
+// (the parse route's maxDuration is 300s). Lower it via QVAC_TIMEOUT_MS on fast
+// hardware. Too short → the call aborts mid-generation and silently degrades to
+// the heuristic parser (≈1 field), which looks like "parsing is broken".
+const QVAC_TIMEOUT_MS = Number(process.env.QVAC_TIMEOUT_MS) || 280_000;
 
 /** Whether a local QVAC runtime is configured (enables both LLM parse and OCR). */
 export const qvacConfigured = !!QVAC_BASE_URL;
@@ -189,7 +195,7 @@ export async function qvacExtract(docs: ExtractedDoc[]): Promise<QvacExtraction>
 /** Call a local QVAC runtime via its OpenAI-compatible chat endpoint. */
 async function callQvacLlm(text: string): Promise<Record<string, unknown>> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
+  const timeout = setTimeout(() => controller.abort(), QVAC_TIMEOUT_MS);
   try {
     const res = await fetch(`${QVAC_BASE_URL}/chat/completions`, {
       method: "POST",
