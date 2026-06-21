@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/oblique-logo-dark.svg">
+    <img src="public/oblique-logo-light.svg" alt="Oblique" width="200">
+  </picture>
+</p>
+
 # Oblique: Prove creditworthiness, reveal nothing
 
 Confidential credit scoring on the **Terminal 3 Network**, built for the Terminal 3 Agent Dev Kit bounty.
